@@ -280,7 +280,7 @@ instance (Print name) => Print (Pat name) where
   pp (AsPat x y)   = pp x <> string "@" <> pp y
   pp (ParPat p)   = lparen <> pp p <> rparen
   pp BangPat{}   = error "BangPat"
-  pp ListPat{}   = error "ListPat"
+  pp (ListPat pats _ _)   = lbracket <> pp (CommaList pats) <> rbracket
   pp (TuplePat elems _ _)   = tupled elems
   pp PArrPat{}   = error "ParrPat"
   pp (ConPatIn name (PrefixCon args))   = pp name <+> hsep (mapM pp args)
@@ -319,7 +319,11 @@ instance (Print name) => Print (HsType name) where
   pp HsForAllTy{}   = error "HsForAllTy"
   pp HsQualTy {..}   = (case unLoc hst_ctxt of
                           []   -> empty
-                          ctx   -> lparen <> pp (CommaList ctx) <> rparen
+                          ctx   -> case ctx of
+                                     [one]   -> pp one
+                                     many   -> lparen <> pp (CommaList many)
+                                            <>
+                                            rparen
                                 <+>
                                 string "=>"
                                 <>
