@@ -15,13 +15,11 @@ import Text.PrettyPrint.Leijen.Text.Monadic hiding (tupled)
 import RdrName
 import Control.Monad.Trans.Reader (Reader, ask, runReader, withReader)
 
-main
-  :: IO ()
+main :: IO ()
 main    = prettyPrintFile "HSFmt.hs" >>= T.putStrLn . displayT
         .
         renderPretty 1 80
-prettyPrintFile
-  :: FilePath -> IO (Doc)
+prettyPrintFile :: FilePath -> IO (Doc)
 prettyPrintFile path   = do
                        out <-
                          parseModule path
@@ -32,8 +30,7 @@ prettyPrintFile path   = do
                                              runReader (pp parsed)
                                                initialPrintState
 data  PrintState = PrintState { bindSymbol :: Reader PrintState Doc }
-initialPrintState
-  :: PrintState
+initialPrintState :: PrintState
 initialPrintState    = PrintState {bindSymbol = string "="}
 class Print a where
   pp
@@ -185,7 +182,9 @@ instance (Print name) => Print (CommaList name) where
                          $
                          cat (punctuate (comma <> space) (mapM pp names))
 instance (Print name) => Print (Sig name) where
-  pp (TypeSig names sig)   = hang 2 $ pp (CommaList names) <$> string "::"
+  pp (TypeSig names sig)   = group $ hang 2 $ pp (CommaList names)
+                           <$>
+                           string "::"
                            <+>
                            group (pp sig)
   pp (ClassOpSig isDefault names sig)   = hang 2
@@ -390,6 +389,5 @@ instance Print GHC.OccName where
   pp n   = string (pack (GHC.occNameString n))
 instance Print ModuleName where
   pp    = string . pack . GHC.moduleNameString
-tupled
-  :: (Print a) => [a] -> Reader PrintState Doc
+tupled :: (Print a) => [a] -> Reader PrintState Doc
 tupled xs   = lparen <> pp (CommaList xs) <> rparen
