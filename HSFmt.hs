@@ -33,8 +33,7 @@ data  PrintState = PrintState { bindSymbol :: Reader PrintState Doc }
 initialPrintState :: PrintState
 initialPrintState    = PrintState {bindSymbol = string "="}
 class Print a where
-  pp
-    :: a -> Reader PrintState Doc
+  pp :: a -> Reader PrintState Doc
 instance (Print e) => Print (GenLocated l e) where
   pp (L _ a)   = pp a
 instance (IsSymOcc a, Print a) => Print (HsModule a) where
@@ -182,22 +181,19 @@ instance (Print name) => Print (CommaList name) where
                          $
                          cat (punctuate (comma <> space) (mapM pp names))
 instance (Print name) => Print (Sig name) where
-  pp (TypeSig names sig)   = group $ hang 2 $ pp (CommaList names)
-                           <$>
-                           string "::"
-                           <+>
-                           group (pp sig)
+  pp (TypeSig names sig)   = hang 2 (pp (SimpleTypeSig names sig))
   pp (ClassOpSig isDefault names sig)   = hang 2
                                         $
                                         (if isDefault then string "default"
                                         <>
                                         space else empty)
                                         <>
-                                        pp (CommaList names)
-                                        <$>
-                                        string "::"
-                                        <+>
-                                        group (pp sig)
+                                        pp (SimpleTypeSig names sig)
+data  SimpleTypeSig name ty = SimpleTypeSig [name] ty
+instance (Print name, Print ty) => Print (SimpleTypeSig name ty) where
+  pp (SimpleTypeSig names ty)   = group $ pp (CommaList names) <$> string "::"
+                                <+>
+                                group (pp ty)
 instance (Print name, Print thing) => Print (HsWildCardBndrs name thing) where
   pp (HsWC _placeholder _ ty)   = pp ty
 instance (Print name, Print thing) => Print (HsImplicitBndrs name thing) where
@@ -374,8 +370,7 @@ instance Print Module where
   pp    = pp . moduleName
 newtype  InfixOccName name = InfixOccName name
 class IsSymOcc a where
-  isSymOcc
-    :: a -> Bool
+  isSymOcc :: a -> Bool
 instance IsSymOcc GHC.OccName where
   isSymOcc    = GHC.isSymOcc
 instance IsSymOcc RdrName where
