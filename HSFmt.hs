@@ -35,9 +35,11 @@ splitNames names [] =
 splitNames names (x : xs) =
   case unLoc x of
     ValD (FunBind {..}) ->
-      if unLoc fun_id `elem` names then let (binds, rest) =
-                                              splitNames names xs
-                                        in (x : binds, rest) else ([], x : xs)
+      if unLoc fun_id `elem` names
+        then let (binds, rest) =
+                   splitNames names xs
+             in (x : binds, rest)
+        else ([], x : xs)
     _ ->
       ([], x : xs)
 
@@ -316,8 +318,9 @@ instance (Print name, IsSymOcc name) => Print (HsExpr name) where
     hang 2
       (string "case" <+> pp expr <+> string "of" <$> (bindRArrow (pp patterns)))
   pp (HsIf _ cond a b) =
-    string "if" <+> pp cond <+> string "then" <+> pp a <+> string "else" <+> pp
-                                                                               b
+    hang 2
+      (string "if" <+> pp cond <$> string "then" <+> pp a <$> string
+                                                                "else" <+> pp b)
   pp (HsLet binds expr) =
     align $ string "let" <+> bindEquals (align (pp binds)) <$> string
                                                                  "in" <+> align
@@ -452,8 +455,9 @@ instance (Print name) => Print (Pat name) where
 
 instance (Print id, Print arg) => Print (HsRecField' id arg) where
   pp HsRecField {..} =
-    pp hsRecFieldLbl <> (if hsRecPun then empty else space <> equals <+> pp
-                                                                           hsRecFieldArg)
+    pp hsRecFieldLbl <> (if hsRecPun
+                           then empty
+                           else space <> equals <+> pp hsRecFieldArg)
 
 instance (Print name) => Print (FieldOcc name) where
   pp FieldOcc {..} =
@@ -495,21 +499,23 @@ instance (Print name, IsSymOcc name) => Print (HsAppType name) where
 
 instance (Print name, IsSymOcc name) => Print (ImportDecl name) where
   pp ImportDecl {..} =
-    string "import" <+> (if ideclQualified then string
-                                                  "qualified" <> space else empty) <> pp
-                                                                                        ideclName <> (case ideclAs of
-                                                                                                        Just n ->
-                                                                                                          space <> string
-                                                                                                                     "as" <+> pp
-                                                                                                                                n
-                                                                                                        Nothing ->
-                                                                                                          empty) <> (case ideclHiding of
-                                                                                                                       Just (hiding, L _ names) ->
-                                                                                                                         space <> (if hiding then string
-                                                                                                                                                    "hiding" <> space else empty) <> tupled
-                                                                                                                                                                                       names
-                                                                                                                       Nothing ->
-                                                                                                                         empty)
+    string "import" <+> (if ideclQualified
+                           then string "qualified" <> space
+                           else empty) <> pp ideclName <> (case ideclAs of
+                                                             Just n ->
+                                                               space <> string
+                                                                          "as" <+> pp
+                                                                                     n
+                                                             Nothing ->
+                                                               empty) <> (case ideclHiding of
+                                                                            Just (hiding, L _ names) ->
+                                                                              space <> (if hiding
+                                                                                          then string
+                                                                                                 "hiding" <> space
+                                                                                          else empty) <> tupled
+                                                                                                           names
+                                                                            Nothing ->
+                                                                              empty)
 
 instance (IsSymOcc a, Print a) => Print (IE a) where
   pp (IEVar n) =
