@@ -3,7 +3,9 @@ module Main where
 import BasicTypes (FractionalLit(..), SourceText)
 import Control.Applicative (liftA2)
 import Control.Monad (zipWithM)
-import Control.Monad.Trans.Reader (Reader, ask, runReader, withReader)
+import Control.Monad.Reader.Class (ask)
+import Control.Monad.Trans.Reader (ReaderT, runReaderT, withReaderT)
+import qualified Control.Monad.Trans.RevState as RevState
 import Data.Data
 import Data.Foldable (toList)
 import Data.Text.Lazy (pack, singleton)
@@ -18,6 +20,10 @@ import Prelude hiding ((<$>))
 import RdrName
 import qualified Text.PrettyPrint.Leijen.Text as PP
 import Text.PrettyPrint.Leijen.Text.Monadic hiding (tupled)
+
+data MultiLine = RequiresMultiline|SingleLine
+
+type PrintM a = ReaderT PrintState (RevState.State MultiLine) a
 
 groupDecls :: Eq id => [LHsDecl id] -> [[LHsDecl id]]
 groupDecls [] =
@@ -56,16 +62,17 @@ prettyPrintFile path =
     Left e ->
       error (show e)
     Right (_, parsed) ->
-      return $ runReader (pp parsed) initialPrintState
+      return $ RevState.evalState (runReaderT (pp parsed) initialPrintState)
+                 SingleLine
 
-data PrintState = PrintState { bindSymbol :: Reader PrintState Doc }
+data PrintState = PrintState { bindSymbol :: PrintM Doc }
 
 initialPrintState :: PrintState
 initialPrintState =
   PrintState {bindSymbol = string "="}
 
 class Print a where
-  pp :: a -> Reader PrintState Doc
+  pp :: a -> PrintM Doc
 
 instance (Print e) => Print (GenLocated l e) where
   pp (L _ a) =
@@ -132,6 +139,8 @@ instance (Print name, IsSymOcc name) => Print (ClsInstDecl name) where
                                                                            cid_binds)))
 
 instance (Print name, IsSymOcc name) => Print (TyClDecl name) where
+  pp SynDecl {..} =
+    string "type" <+> pp tcdLName <+> pp tcdTyVars <+> equals <+> pp tcdRhs
   pp ClassDecl {..} =
     string "class" <+> pp tcdLName <+> pp tcdTyVars <+> string
                                                           "where" <$> indent 2
@@ -266,10 +275,10 @@ instance (Print name, Print thing) => Print (HsImplicitBndrs name thing) where
     pp thing
 
 bindRArrow =
-  withReader (\s -> s { bindSymbol = string "->" })
+  withReaderT (\s -> s { bindSymbol = string "->" })
 
 bindEquals =
-  withReader (\s -> s { bindSymbol = string "=" })
+  withReaderT (\s -> s { bindSymbol = string "=" })
 
 instance (Print name, IsSymOcc name) => Print (HsExpr name) where
   pp (HsVar n) =
@@ -569,7 +578,7 @@ instance Print ModuleName where
   pp =
     string . pack . GHC.moduleNameString
 
-tupled :: (Print a) => [a] -> Reader PrintState Doc
+tupled :: (Print a) => [a] -> PrintM Doc
 tupled [] =
   lparen <> rparen
 tupled [a] =
@@ -582,7 +591,7 @@ tupled as =
                                                               (comma <> space))
                              (map pp as)) <$$> rparen)
 
-singleLineTuple :: Print a => [a] -> Reader PrintState Doc
+singleLineTuple :: Print a => [a] -> PrintM Doc
 singleLineTuple xs =
   lparen <> hsep (punctuate comma (mapM pp xs)) <> rparen
 
