@@ -18,7 +18,7 @@ import Language.Haskell.GHC.ExactPrint (parseModule)
 import qualified Module as GHC
 import qualified Name as GHC
 import qualified OccName as GHC
-import Prelude hiding ((<$>))
+import Prelude hiding ((<$>), lines)
 import RdrName
 import qualified Text.PrettyPrint.Leijen.Text as PP
 import qualified Text.PrettyPrint.Leijen.Text.Monadic as PPM
@@ -49,13 +49,12 @@ main = prettyPrintFile "HSFmt.hs" >>= T.putStrLn . displayT . renderPretty 1 80
 
 prettyPrintFile :: FilePath -> IO (Doc)
 prettyPrintFile path =
-  do
-  out <-
-    parseModule path
-  case out of
-    Left e -> error (show e)
-    Right (_, parsed) ->
-      return $ runReader (fmap fst (runWriterT (pp parsed))) initialPrintState
+  do out <- parseModule path
+     case out of
+       Left e -> error (show e)
+       Right (_, parsed) ->
+         return $
+         runReader (fmap fst (runWriterT (pp parsed))) initialPrintState
 
 data PrintState = PrintState { bindSymbol :: PrintM Doc }
 
@@ -80,21 +79,18 @@ instance (IsSymOcc a, Print a, Eq a) => Print (HsModule a) where
                Just (L _ (e : es)) ->
                  line <>
                  vsep
-                   (do
-                    x <-
-                      string "(" <> space <> pp e
-                    xs <-
-                      mapM (\a -> string ", " <> pp a) es
-                    pure (x : xs)) <>
+                   (do x <- string "(" <> space <> pp e
+                       xs <- mapM (\a -> string ", " <> pp a) es
+                       pure (x : xs)) <>
                  line <>
                  string ")") </>
             string "where") <>
          line <>
          line) <>
-    (vsep (mapM pp hsmodImports)) <>
+    lines (mapM pp hsmodImports) <>
     line <>
     line <>
-    vcat (punctuate line (mapM (vcat . mapM pp) (groupDecls hsmodDecls)))
+    lines (punctuate line (mapM (lines . mapM pp) (groupDecls hsmodDecls)))
 
 instance (Print name, IsSymOcc name) => Print (HsDecl name) where
   pp (SigD sig) = pp sig
@@ -148,7 +144,7 @@ instance (Print name, IsSymOcc name) => Print (ConDecl name) where
 instance (Print idL, Print idR, IsSymOcc idL, IsSymOcc idR)
            => Print (HsBindLR idL idR) where
   pp FunBind {..} =
-    vsep (mapM (pp . SingleMatch fun_id) (unLoc (mg_alts fun_matches)))
+    lines (mapM (pp . SingleMatch fun_id) (unLoc (mg_alts fun_matches)))
   pp PatBind {..} = pp pat_lhs <+> pp pat_rhs
   pp VarBind {..} = error "VarBind"
 
@@ -179,17 +175,13 @@ instance (Print body, Print id, IsSymOcc id) => Print (GRHSs id body) where
 
 instance (Print body, Print id, IsSymOcc id) => Print (GRHS id body) where
   pp (GRHS [] body) =
-    do
-    PrintState{bindSymbol} <-
-      ask
-    group (nest 2 (bindSymbol <$> pp body))
+    do PrintState{bindSymbol} <- ask
+       group (nest 2 (bindSymbol <$> pp body))
   pp (GRHS guards body) =
-    do
-    PrintState{bindSymbol} <-
-      ask
-    indent 2
-      (string "|" <+> pp (CommaList guards) <+> bindSymbol <+>
-       indent 2 (pp body))
+    do PrintState{bindSymbol} <- ask
+       indent 2
+         (string "|" <+> pp (CommaList guards) <+> bindSymbol <+>
+          indent 2 (pp body))
 
 newtype CommaList a = CommaList [a]
 
@@ -245,11 +237,11 @@ instance (Print name, IsSymOcc name) => Print (HsExpr name) where
   pp (SectionR a b) = lparen <> pp a <+> pp b <> rparen
   pp (ExplicitTuple exprs _) = tupled exprs
   pp (HsDo _ctx statements _) =
-    string "do" <$!> vsep (mapM pp (unLoc statements))
+    string "do" <+> align (lines (mapM pp (unLoc statements)))
   pp (HsCase expr patterns) =
-    do
-    hang 2
-      (string "case" <+> pp expr <+> string "of" <$!> bindRArrow (pp patterns))
+    do hang 2
+         (string "case" <+> pp expr <+> string "of" <$!>
+          bindRArrow (pp patterns))
   pp (HsIf _ cond a b) =
     hang 2
       (string "if" <+> pp cond <$> string "then" <+> pp a <$> string "else" <+>
@@ -310,7 +302,7 @@ instance (Print body, Print idL, Print idR, IsSymOcc idL, IsSymOcc idR)
            => Print (StmtLR idL idR body) where
   pp (BodyStmt body _syntax1 _syntax2 _placeholder) = nest 2 (pp body)
   pp (BindStmt pat body _syn1 _syn2 _placeholder) =
-    hang 2 (pp pat <+> string "<-" <$> pp body)
+    hang 2 (group (pp pat <+> string "<-" <$> pp body))
   pp (LetStmt binds) = align $ string "let" <+> bindEquals (align (pp binds))
 
 instance (Print name) => Print (Pat name) where
@@ -450,15 +442,20 @@ singleLineTuple xs = lparen <> hsep (punctuate comma (mapM pp xs)) <> rparen
 
 group :: PrintM Doc -> PrintM Doc
 group child =
-  do
-  (doc, Any multiline) <-
-    listen child
-  if multiline
-    then return doc
-    else PPM.group (return doc)
+  do (doc, Any multiline) <- listen child
+     if multiline
+       then return doc
+       else PPM.group (return doc)
 
 (<$!>) :: PrintM Doc -> PrintM Doc -> PrintM Doc
 (<$!>) l r =
-  do
-  tell (Any True)
-  l <$> r
+  do tell (Any True)
+     l <$> r
+
+lines :: PrintM [Doc] -> PrintM Doc
+lines ds =
+  do docs <- ds
+     case docs of
+       [] -> empty
+       [x] -> pure x
+       (x : xs) -> pure x <$!> lines (pure xs)
