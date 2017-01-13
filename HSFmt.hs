@@ -321,10 +321,16 @@ instance Print HsLit where
 instance Print FastString where
   pp fs = string (pack (show (unpackFS fs)))
 
-instance (Print body, Print idL) => Print (StmtLR idL idR body) where
-  pp (BodyStmt body _syntax1 _syntax2 _placeholder) = pp body
+instance ( Print body
+         , Print idL
+         , Print idR
+         , IsSymOcc idL
+         , IsSymOcc idR
+         ) => Print (StmtLR idL idR body) where
+  pp (BodyStmt body _syntax1 _syntax2 _placeholder) = nest 2 (pp body)
   pp (BindStmt pat body _syn1 _syn2 _placeholder) =
     hang 2 (pp pat <+> string "<-" <$> pp body)
+  pp (LetStmt binds) = align $ string "let" <+> bindEquals (align (pp binds))
 
 instance (Print name) => Print (Pat name) where
   pp WildPat{} = string "_"
