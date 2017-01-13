@@ -73,37 +73,28 @@ instance (IsSymOcc a, Print a, Eq a) => Print (HsModule a) where
     (case hsmodName of
        Just name ->
          hang 2
-           (string "module" </> pp name <> (case hsmodExports of
-                                              Nothing -> empty
-                                              Just (L _ []) ->
-                                                softline <> string "()"
-                                              Just (L _ (e : es)) ->
-                                                line <> vsep
-                                                          (do
-                                                          x <-
-                                                            string
-                                                              "(" <> space <> pp
-                                                                                e
-                                                          xs <-
-                                                            mapM
-                                                              (\a ->
-                                                                string
-                                                                  ", " <> pp a)
-                                                              es
-                                                          pure
-                                                            (x : xs)) <> line <> string
-                                                                                   ")") </> string
-                                                                                              "where") <> line <> line) <> (vsep
-                                                                                                                              (mapM
-                                                                                                                                 pp
-                                                                                                                                 hsmodImports)) <> line <> line <> vcat
-                                                                                                                                                                     (punctuate
-                                                                                                                                                                        line
-                                                                                                                                                                        (mapM
-                                                                                                                                                                           (vcat . mapM
-                                                                                                                                                                                     pp)
-                                                                                                                                                                           (groupDecls
-                                                                                                                                                                              hsmodDecls)))
+           (string "module" </> pp name <>
+           (case hsmodExports of
+              Nothing -> empty
+              Just (L _ []) -> softline <> string "()"
+              Just (L _ (e : es)) ->
+                line <>
+                vsep
+                  (do
+                  x <-
+                    string "(" <> space <> pp e
+                  xs <-
+                    mapM (\a -> string ", " <> pp a) es
+                  pure (x : xs)) <>
+                line <>
+                string ")") </>
+           string "where") <>
+         line <>
+         line) <>
+    (vsep (mapM pp hsmodImports)) <>
+    line <>
+    line <>
+    vcat (punctuate line (mapM (vcat . mapM pp) (groupDecls hsmodDecls)))
 
 instance (Print name, IsSymOcc name) => Print (HsDecl name) where
   pp (SigD sig) = pp sig
@@ -116,30 +107,25 @@ instance (Print name, IsSymOcc name) => Print (InstDecl name) where
 
 instance (Print name, IsSymOcc name) => Print (ClsInstDecl name) where
   pp ClsInstDecl {..} =
-    string "instance" <+> pp cid_poly_ty <+> string "where" <$> indent 2
-                                                                  (vsep
-                                                                     (mapM pp
-                                                                        (toList
-                                                                           cid_binds)))
+    string "instance" <+> pp cid_poly_ty <+> string "where" <$>
+    indent 2 (vsep (mapM pp (toList cid_binds)))
 
 instance (Print name, IsSymOcc name) => Print (TyClDecl name) where
   pp SynDecl {..} =
     string "type" <+> pp tcdLName <+> pp tcdTyVars <+> equals <+> pp tcdRhs
   pp ClassDecl {..} =
-    string "class" <+> pp tcdLName <+> pp tcdTyVars <+> string
-                                                          "where" <$> indent 2
-                                                                        (vsep
-                                                                           (mapM
-                                                                              pp
-                                                                              tcdSigs))
+    string "class" <+> pp tcdLName <+> pp tcdTyVars <+> string "where" <$>
+    indent 2 (vsep (mapM pp tcdSigs))
   pp DataDecl {..} =
     let HsDataDefn {..} = tcdDataDefn
-    in group $ nest 2 $ (case dd_ND of
-                           NewType -> string "newtype"
-                           DataType -> string "data") <+> pp tcdLName <+> pp
-                                                                            tcdTyVars <+> equals <$> pp
-                                                                                                       (ConstructorList
-                                                                                                          dd_cons)
+    in group $ nest 2 $
+       (case dd_ND of
+          NewType -> string "newtype"
+          DataType -> string "data") <+>
+       pp tcdLName <+>
+       pp tcdTyVars <+>
+       equals <$>
+       pp (ConstructorList dd_cons)
 
 instance (Print name) => Print (LHsQTyVars name) where
   pp HsQTvs {..} = hsep (mapM pp hsq_explicit)
@@ -154,10 +140,10 @@ instance (Print thing) => Print (ConstructorList thing) where
 
 instance (Print name, IsSymOcc name) => Print (ConDecl name) where
   pp ConDeclH98 {..} =
-    pp con_name <+> case con_details of
-                      RecCon xs ->
-                        align (lbrace <+> pp (CommaList (unLoc xs)) <+> rbrace)
-                      PrefixCon args -> hsep (mapM pp args)
+    pp con_name <+>
+    case con_details of
+      RecCon xs -> align (lbrace <+> pp (CommaList (unLoc xs)) <+> rbrace)
+      PrefixCon args -> hsep (mapM pp args)
 
 instance ( Print idL
          , Print idR
@@ -189,10 +175,11 @@ instance ( Print name
 
 instance (Print id, Print body, IsSymOcc id) => Print (Match id body) where
   pp Match {..} =
-    cat (mapM (\pat -> pp pat <> space) m_pats) <> (case m_type of
-                                                      Nothing -> empty
-                                                      Just a -> pp a) <> pp
-                                                                           m_grhss
+    cat (mapM (\pat -> pp pat <> space) m_pats) <>
+    (case m_type of
+       Nothing -> empty
+       Just a -> pp a) <>
+    pp m_grhss
 
 instance (Print body, Print id, IsSymOcc id) => Print (GRHSs id body) where
   pp GRHSs {..} = vsep (mapM pp grhssGRHSs)
@@ -208,8 +195,8 @@ instance (Print body, Print id, IsSymOcc id) => Print (GRHS id body) where
     PrintState{bindSymbol} <-
       ask
     indent 2
-      (string "|" <+> pp (CommaList guards) <+> bindSymbol <+> indent 2
-                                                                 (pp body))
+      (string "|" <+> pp (CommaList guards) <+> bindSymbol <+>
+      indent 2 (pp body))
 
 newtype CommaList a = CommaList [a]
 
@@ -220,10 +207,8 @@ instance (Print name) => Print (CommaList name) where
 instance (Print name, IsSymOcc name) => Print (Sig name) where
   pp (TypeSig names sig) = hang 2 (pp (SimpleTypeSig names sig))
   pp (ClassOpSig isDefault names sig) =
-    hang 2 $ (if isDefault then string "default" <> space else empty) <> pp
-                                                                           (SimpleTypeSig
-                                                                              names
-                                                                              sig)
+    hang 2 $ (if isDefault then string "default" <> space else empty) <>
+    pp (SimpleTypeSig names sig)
 
 data SimpleTypeSig name ty = SimpleTypeSig [name] ty
 
@@ -232,9 +217,8 @@ instance ( Print name
          , IsSymOcc name
          ) => Print (SimpleTypeSig name ty) where
   pp (SimpleTypeSig names ty) =
-    group $ pp (CommaList (fmap InfixOccName names)) <$> string "::" <+> group
-                                                                           (pp
-                                                                              ty)
+    group $ pp (CommaList (fmap InfixOccName names)) <$> string "::" <+>
+    group (pp ty)
 
 instance (Print name, Print thing) => Print (HsWildCardBndrs name thing) where
   pp (HsWC _placeholder _ ty) = pp ty
@@ -260,9 +244,9 @@ instance (Print name, IsSymOcc name) => Print (HsExpr name) where
   pp HsAppType{} = error "HsAppType"
   pp HsAppTypeOut{} = error "HsAppTypeOut"
   pp (OpApp a (L _ (HsVar op)) _ b)   | isSymOcc op =   group
-                                                          (pp a <+> pp op <+> pp
-                                                                                b)
-    | otherwise =   group (pp a <+> char '`' <> pp op <> char '`' <+> pp b)
+                                                          (pp a <+> pp op <$>
+                                                          pp b)
+    | otherwise =   pp a <+> char '`' <> pp op <> char '`' <+> pp b
   pp (OpApp a other _ b) = error "OpApp with a non-HsVar operator"
   pp (NegApp neg _) = string "-" <> pp neg
   pp (HsPar expr) = lparen <> pp expr <> rparen
@@ -277,13 +261,11 @@ instance (Print name, IsSymOcc name) => Print (HsExpr name) where
       (string "case" <+> pp expr <+> string "of" <$!> bindRArrow (pp patterns))
   pp (HsIf _ cond a b) =
     hang 2
-      (string "if" <+> pp cond <$> string "then" <+> pp a <$> string
-                                                                "else" <+> pp b)
+      (string "if" <+> pp cond <$> string "then" <+> pp a <$> string "else" <+>
+      pp b)
   pp (HsLet binds expr) =
-    align $ string "let" <+> bindEquals (align (pp binds)) <$> string
-                                                                 "in" <+> align
-                                                                            (pp
-                                                                               expr)
+    align $ string "let" <+> bindEquals (align (pp binds)) <$> string "in" <+>
+    align (pp expr)
   pp (ExplicitList _ _ elems) = lbracket <> pp (CommaList elems) <> rbracket
   pp RecordCon {..} = pp rcon_con_name <+> lbrace <> pp rcon_flds <> rbrace
   pp RecordUpd {..} =
@@ -371,9 +353,10 @@ instance (Print name) => Print (Pat name) where
 
 instance (Print id, Print arg) => Print (HsRecField' id arg) where
   pp HsRecField {..} =
-    pp hsRecFieldLbl <> (if hsRecPun
-                           then empty
-                           else space <> equals <+> pp hsRecFieldArg)
+    pp hsRecFieldLbl <>
+    (if hsRecPun
+       then empty
+       else space <> equals <+> pp hsRecFieldArg)
 
 instance (Print name) => Print (FieldOcc name) where
   pp FieldOcc {..} = pp rdrNameFieldOcc
@@ -386,7 +369,10 @@ instance (Print name, IsSymOcc name) => Print (HsType name) where
        ctx ->
          (case ctx of
             [one] -> pp one
-            ts -> tupled ts) <+> string "=>" <> space) <> pp hst_body
+            ts -> tupled ts) <+>
+         string "=>" <>
+         space) <>
+    pp hst_body
   pp (HsTyVar name) = pp name
   pp (HsAppsTy types) = hsep (mapM pp types)
   pp (HsAppTy l r) = pp l <+> pp r
@@ -401,23 +387,19 @@ instance (Print name, IsSymOcc name) => Print (HsAppType name) where
 
 instance (Print name, IsSymOcc name) => Print (ImportDecl name) where
   pp ImportDecl {..} =
-    string "import" <+> (if ideclQualified
-                           then string "qualified" <> space
-                           else empty) <> pp ideclName <> (case ideclAs of
-                                                             Just n ->
-                                                               space <> string
-                                                                          "as" <+> pp
-                                                                                     n
-                                                             Nothing ->
-                                                               empty) <> (case ideclHiding of
-                                                                            Just (hiding, L _ names) ->
-                                                                              space <> (if hiding
-                                                                                          then string
-                                                                                                 "hiding" <> space
-                                                                                          else empty) <> tupled
-                                                                                                           names
-                                                                            Nothing ->
-                                                                              empty)
+    string "import" <+>
+    (if ideclQualified
+       then string "qualified" <> space
+       else empty) <>
+    pp ideclName <>
+    (case ideclAs of
+       Just n -> space <> string "as" <+> pp n
+       Nothing -> empty) <>
+    (case ideclHiding of
+       Just (hiding, L _ names) ->
+         space <> (if hiding then string "hiding" <> space else empty) <>
+         tupled names
+       Nothing -> empty)
 
 instance (IsSymOcc a, Print a) => Print (IE a) where
   pp (IEVar n) = pp (fmap InfixOccName n)
@@ -449,8 +431,8 @@ instance IsSymOcc b => IsSymOcc (GenLocated a b) where
   isSymOcc = isSymOcc . unLoc
 
 instance (Print name, IsSymOcc name) => Print (InfixOccName name) where
-  pp (InfixOccName occName)   | isSymOcc occName =   lparen <> pp
-                                                                 occName <> rparen
+  pp (InfixOccName occName)   | isSymOcc occName =   lparen <> pp occName <>
+                                                     rparen
     | otherwise =   pp occName
 
 instance Print GHC.OccName where
@@ -463,12 +445,13 @@ tupled :: (Print a) => [a] -> PrintM Doc
 tupled [] = lparen <> rparen
 tupled [a] = lparen <> pp a <> rparen
 tupled as =
-  group $ align
-            (vcat
-               (sequence $ zipWith (<>)
-                             (lparen <> (space <|> empty) : repeat
-                                                              (comma <> space))
-                             (map pp as)) <$$> rparen)
+  group $
+  align
+    (vcat
+       (sequence $
+       zipWith (<>) (lparen <> (space <|> empty) : repeat (comma <> space))
+         (map pp as)) <$$>
+    rparen)
 
 singleLineTuple :: Print a => [a] -> PrintM Doc
 singleLineTuple xs = lparen <> hsep (punctuate comma (mapM pp xs)) <> rparen
