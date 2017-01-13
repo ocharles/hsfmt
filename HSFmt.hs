@@ -16,7 +16,7 @@ import RdrName
 import Control.Monad.Trans.Reader (Reader, ask, runReader, withReader)
 
 main :: IO ()
-main  = prettyPrintFile "HSFmt.hs" >>= T.putStrLn . displayT . renderPretty 1 80
+main = prettyPrintFile "HSFmt.hs" >>= T.putStrLn . displayT . renderPretty 1 80
 prettyPrintFile :: FilePath -> IO (Doc)
 prettyPrintFile path = do
   out <-
@@ -26,7 +26,7 @@ prettyPrintFile path = do
     Right (_, parsed) -> return $ runReader (pp parsed) initialPrintState
 data  PrintState = PrintState { bindSymbol :: Reader PrintState Doc }
 initialPrintState :: PrintState
-initialPrintState  = PrintState {bindSymbol = string "="}
+initialPrintState = PrintState {bindSymbol = string "="}
 class Print a where
   pp :: a -> Reader PrintState Doc
 instance (Print e) => Print (GenLocated l e) where
@@ -132,8 +132,8 @@ instance (Print name,
           Print body) => Print (SingleMatch name id body) where
   pp SingleMatch {..} = pp singleMatchName <+> pp singleMatchAlt
 instance (Print id, Print body) => Print (Match id body) where
-  pp Match {..} = pp (CommaList m_pats)
-    <+>
+  pp Match {..} = cat (mapM (\pat -> pp pat <> space) m_pats)
+    <>
     (case m_type of
        Nothing -> empty
        Just a -> pp a)
@@ -174,7 +174,7 @@ instance (Print name, Print thing) => Print (HsWildCardBndrs name thing) where
   pp (HsWC _placeholder _ ty) = pp ty
 instance (Print name, Print thing) => Print (HsImplicitBndrs name thing) where
   pp (HsIB _ thing) = pp thing
-bindRArrow  = withReader (\s -> s { bindSymbol = string "->" })
+bindRArrow = withReader (\s -> s { bindSymbol = string "->" })
 instance (Print name) => Print (HsExpr name) where
   pp (HsVar n) = pp n
   pp HsUnboundVar{} = error "HsUnboundVar"
@@ -232,7 +232,7 @@ instance Print OverLitVal where
   pp (HsIsString _ str) = pp str
   pp (HsIntegral _ n) = pp n
 instance Print Integer where
-  pp  = integer
+  pp = integer
 instance Print HsLit where
   pp (HsString _ str) = pp str
   pp (HsChar _ c) = squote <> string (singleton c) <> squote
@@ -331,14 +331,14 @@ instance Print RdrName where
   pp (Orig mod name) = pp mod <> dot <> pp name
   pp (Exact name) = pp (GHC.nameOccName name)
 instance Print Module where
-  pp  = pp . moduleName
+  pp = pp . moduleName
 newtype  InfixOccName name = InfixOccName name
 class IsSymOcc a where
   isSymOcc :: a -> Bool
 instance IsSymOcc GHC.OccName where
-  isSymOcc  = GHC.isSymOcc
+  isSymOcc = GHC.isSymOcc
 instance IsSymOcc RdrName where
-  isSymOcc  = isSymOcc . rdrNameOcc
+  isSymOcc = isSymOcc . rdrNameOcc
 instance (Print name, IsSymOcc name) => Print (InfixOccName name) where
   pp (InfixOccName occName) | isSymOcc occName =   lparen <> pp occName
                                                    <>
@@ -347,6 +347,6 @@ instance (Print name, IsSymOcc name) => Print (InfixOccName name) where
 instance Print GHC.OccName where
   pp n = string (pack (GHC.occNameString n))
 instance Print ModuleName where
-  pp  = string . pack . GHC.moduleNameString
+  pp = string . pack . GHC.moduleNameString
 tupled :: (Print a) => [a] -> Reader PrintState Doc
 tupled xs = lparen <> pp (CommaList xs) <> rparen
