@@ -1,5 +1,6 @@
 module Main where
 
+import BasicTypes (FractionalLit(..), SourceText)
 import Control.Applicative (liftA2)
 import Control.Monad (zipWithM)
 import Control.Monad.Trans.Reader (Reader, ask, runReader, withReader)
@@ -370,18 +371,28 @@ instance (Print name) => Print (HsOverLit name) where
 instance Print OverLitVal where
   pp (HsIsString _ str) =
     pp str
-  pp (HsIntegral _ n) =
+  pp (HsIntegral n _) =
+    text (pack n)
+  pp (HsFractional n) =
     pp n
 
 instance Print Integer where
   pp =
     integer
 
+instance Print FractionalLit where
+  pp =
+    text . pack . fl_text
+
 instance Print HsLit where
   pp (HsString _ str) =
     pp str
   pp (HsChar _ c) =
     squote <> string (singleton c) <> squote
+  pp (HsFloatPrim n) =
+    pp n
+  pp (HsDoublePrim n) =
+    pp n
 
 instance Print FastString where
   pp fs =
@@ -505,6 +516,8 @@ instance (IsSymOcc a, Print a) => Print (IE a) where
     pp (fmap InfixOccName n)
   pp (IEThingAbs n) =
     pp (fmap InfixOccName n)
+  pp (IEThingAll n) =
+    pp (fmap InfixOccName n) <> lparen <> string ".." <> rparen
 
 instance Print RdrName where
   pp (Unqual occName) =
