@@ -1,4 +1,4 @@
-{ nixpkgs ? import <nixpkgs> {}, compiler ? "default" }:
+{ nixpkgs ? import <nixpkgs> {} }:
 
 let
 
@@ -21,9 +21,18 @@ let
         license = stdenv.lib.licenses.bsd3;
       };
 
-  haskellPackages = if compiler == "default"
-                       then pkgs.haskellPackages
-                       else pkgs.haskell.packages.${compiler};
+  haskellPackages = pkgs.haskellPackages.override {
+    overrides = self: super: {
+      wl-pprint-text = pkgs.haskell.lib.overrideCabal super.wl-pprint-text (drv: {
+        src = pkgs.fetchgit {
+          url = git://github.com/ocharles/wl-pprint-text;
+          sha256 = "04dz1m1pvhizzi92p45kzns15isa1xs8gv7vazmnf36vl2bwgclj";
+          rev = "e781145ac9546991a9b482d3f3fb1169ad93927a";
+        };
+        buildDepends = [ super.base-compat ];
+      });
+    };
+  };
 
   drv = haskellPackages.callPackage f {};
 
