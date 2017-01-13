@@ -24,7 +24,7 @@ prettyPrintFile path = do
   case out of
     Left e -> error (show e)
     Right (_, parsed) -> return $ runReader (pp parsed) initialPrintState
-data  PrintState = PrintState { bindSymbol :: Reader PrintState Doc }
+data PrintState = PrintState { bindSymbol :: Reader PrintState Doc }
 initialPrintState :: PrintState
 initialPrintState = PrintState {bindSymbol = string "="}
 class Print a where
@@ -91,8 +91,6 @@ instance (Print name) => Print (TyClDecl name) where
                            NewType -> string "newtype"
                            DataType -> string "data")
                         <+>
-                        pp (fmap CommaList dd_ctxt)
-                        <+>
                         pp tcdLName
                         <+>
                         pp tcdTyVars
@@ -104,7 +102,7 @@ instance (Print name) => Print (LHsQTyVars name) where
   pp HsQTvs {..} = hsep (mapM pp hsq_explicit)
 instance (Print name) => Print (HsTyVarBndr name) where
   pp (UserTyVar n) = pp n
-newtype  ConstructorList thing = ConstructorList [thing]
+newtype ConstructorList thing = ConstructorList [thing]
 instance (Print thing) => Print (ConstructorList thing) where
   pp (ConstructorList as) = cat (punctuate (string "|") (mapM pp as))
 instance (Print name) => Print (ConDecl name) where
@@ -125,8 +123,8 @@ instance (Print name) => Print (ConDeclField name) where
     pp cd_fld_type
 instance (Print id, Print body) => Print (MatchGroup id body) where
   pp MG {..} = vsep (mapM pp (unLoc mg_alts))
-data  SingleMatch name id body = SingleMatch { singleMatchName :: name, 
-                                               singleMatchAlt :: LMatch id body }
+data SingleMatch name id body = SingleMatch { singleMatchName :: name, 
+                                              singleMatchAlt :: LMatch id body }
 instance (Print name, 
           Print id, 
           Print body) => Print (SingleMatch name id body) where
@@ -153,7 +151,7 @@ instance (Print body, Print id) => Print (GRHS id body) where
       (string "|" <+> pp (CommaList guards) <+> bindSymbol
       <+>
       indent 2 (pp body))
-newtype  CommaList a = CommaList [a]
+newtype CommaList a = CommaList [a]
 instance (Print name) => Print (CommaList name) where
   pp (CommaList names) = hang 0
     $
@@ -165,7 +163,7 @@ instance (Print name) => Print (Sig name) where
     (if isDefault then string "default" <> space else empty)
     <>
     pp (SimpleTypeSig names sig)
-data  SimpleTypeSig name ty = SimpleTypeSig [name] ty
+data SimpleTypeSig name ty = SimpleTypeSig [name] ty
 instance (Print name, Print ty) => Print (SimpleTypeSig name ty) where
   pp (SimpleTypeSig names ty) = group $ pp (CommaList names) <$> string "::"
     <+>
@@ -332,7 +330,7 @@ instance Print RdrName where
   pp (Exact name) = pp (GHC.nameOccName name)
 instance Print Module where
   pp = pp . moduleName
-newtype  InfixOccName name = InfixOccName name
+newtype InfixOccName name = InfixOccName name
 class IsSymOcc a where
   isSymOcc :: a -> Bool
 instance IsSymOcc GHC.OccName where
