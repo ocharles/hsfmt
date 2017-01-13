@@ -107,7 +107,7 @@ instance (Print name, IsSymOcc name) => Print (InstDecl name) where
 
 instance (Print name, IsSymOcc name) => Print (ClsInstDecl name) where
   pp ClsInstDecl {..} =
-    string "instance" <+> pp cid_poly_ty <+> string "where" <$>
+    string "instance" <+> hang 2 (pp cid_poly_ty) <+> string "where" <$>
     indent 2 (vsep (mapM pp (toList cid_binds)))
 
 instance (Print name, IsSymOcc name) => Print (TyClDecl name) where
@@ -145,11 +145,8 @@ instance (Print name, IsSymOcc name) => Print (ConDecl name) where
       RecCon xs -> align (lbrace <+> pp (CommaList (unLoc xs)) <+> rbrace)
       PrefixCon args -> hsep (mapM pp args)
 
-instance ( Print idL
-         , Print idR
-         , IsSymOcc idL
-         , IsSymOcc idR
-         ) => Print (HsBindLR idL idR) where
+instance (Print idL, Print idR, IsSymOcc idL, IsSymOcc idR)
+           => Print (HsBindLR idL idR) where
   pp FunBind {..} =
     vsep (mapM (pp . SingleMatch fun_id) (unLoc (mg_alts fun_matches)))
   pp PatBind {..} = pp pat_lhs <+> pp pat_rhs
@@ -165,12 +162,8 @@ instance (Print id, Print body, IsSymOcc id) => Print (MatchGroup id body) where
 data SingleMatch name id body =
   SingleMatch { singleMatchName :: name, singleMatchAlt :: LMatch id body }
 
-instance ( Print name
-         , Print id
-         , Print body
-         , IsSymOcc name
-         , IsSymOcc id
-         ) => Print (SingleMatch name id body) where
+instance (Print name, Print id, Print body, IsSymOcc name, IsSymOcc id)
+           => Print (SingleMatch name id body) where
   pp SingleMatch {..} = pp (InfixOccName singleMatchName) <+> pp singleMatchAlt
 
 instance (Print id, Print body, IsSymOcc id) => Print (Match id body) where
@@ -212,10 +205,8 @@ instance (Print name, IsSymOcc name) => Print (Sig name) where
 
 data SimpleTypeSig name ty = SimpleTypeSig [name] ty
 
-instance ( Print name
-         , Print ty
-         , IsSymOcc name
-         ) => Print (SimpleTypeSig name ty) where
+instance (Print name, Print ty, IsSymOcc name)
+           => Print (SimpleTypeSig name ty) where
   pp (SimpleTypeSig names ty) =
     group $ pp (CommaList (fmap InfixOccName names)) <$> string "::" <+>
     group (pp ty)
@@ -280,18 +271,12 @@ instance (Print id, Print arg) => Print (HsRecFields id arg) where
   pp (HsRecFields [] (Just 0)) = string ".."
   pp (HsRecFields flds Nothing) = pp (CommaList flds)
 
-instance ( Print idL
-         , Print idR
-         , IsSymOcc idL
-         , IsSymOcc idR
-         ) => Print (HsLocalBindsLR idL idR) where
+instance (Print idL, Print idR, IsSymOcc idL, IsSymOcc idR)
+           => Print (HsLocalBindsLR idL idR) where
   pp (HsValBinds binds) = pp binds
 
-instance ( Print idL
-         , Print idR
-         , IsSymOcc idL
-         , IsSymOcc idR
-         ) => Print (HsValBindsLR idL idR) where
+instance (Print idL, Print idR, IsSymOcc idL, IsSymOcc idR)
+           => Print (HsValBindsLR idL idR) where
   pp (ValBindsIn binds _) = vsep (mapM pp (toList binds))
 
 instance (Print name) => Print (AmbiguousFieldOcc name) where
@@ -321,12 +306,8 @@ instance Print HsLit where
 instance Print FastString where
   pp fs = string (pack (show (unpackFS fs)))
 
-instance ( Print body
-         , Print idL
-         , Print idR
-         , IsSymOcc idL
-         , IsSymOcc idR
-         ) => Print (StmtLR idL idR body) where
+instance (Print body, Print idL, Print idR, IsSymOcc idL, IsSymOcc idR)
+           => Print (StmtLR idL idR body) where
   pp (BodyStmt body _syntax1 _syntax2 _placeholder) = nest 2 (pp body)
   pp (BindStmt pat body _syn1 _syn2 _placeholder) =
     hang 2 (pp pat <+> string "<-" <$> pp body)
@@ -374,9 +355,10 @@ instance (Print name, IsSymOcc name) => Print (HsType name) where
     (case unLoc hst_ctxt of
        [] -> empty
        ctx ->
+         group $
          (case ctx of
             [one] -> pp one
-            ts -> tupled ts) <+>
+            ts -> tupled ts) <$>
          string "=>" <>
          space) <>
     pp hst_body
