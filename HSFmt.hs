@@ -74,21 +74,21 @@ instance (IsSymOcc a, Print a, Eq a) => Print (HsModule a) where
        Just name ->
          hang 2
            (string "module" </> pp name <>
-           (case hsmodExports of
-              Nothing -> empty
-              Just (L _ []) -> softline <> string "()"
-              Just (L _ (e : es)) ->
-                line <>
-                vsep
-                  (do
-                  x <-
-                    string "(" <> space <> pp e
-                  xs <-
-                    mapM (\a -> string ", " <> pp a) es
-                  pure (x : xs)) <>
-                line <>
-                string ")") </>
-           string "where") <>
+            (case hsmodExports of
+               Nothing -> empty
+               Just (L _ []) -> softline <> string "()"
+               Just (L _ (e : es)) ->
+                 line <>
+                 vsep
+                   (do
+                    x <-
+                      string "(" <> space <> pp e
+                    xs <-
+                      mapM (\a -> string ", " <> pp a) es
+                    pure (x : xs)) <>
+                 line <>
+                 string ")") </>
+            string "where") <>
          line <>
          line) <>
     (vsep (mapM pp hsmodImports)) <>
@@ -189,7 +189,7 @@ instance (Print body, Print id, IsSymOcc id) => Print (GRHS id body) where
       ask
     indent 2
       (string "|" <+> pp (CommaList guards) <+> bindSymbol <+>
-      indent 2 (pp body))
+       indent 2 (pp body))
 
 newtype CommaList a = CommaList [a]
 
@@ -236,11 +236,11 @@ instance (Print name, IsSymOcc name) => Print (HsExpr name) where
   pp HsAppTypeOut{} = error "HsAppTypeOut"
   pp (OpApp a (L _ (HsVar op)) _ b)   | isSymOcc op =   group
                                                           (pp a <+> pp op <$>
-                                                          pp b)
+                                                           pp b)
     | otherwise =   pp a <+> char '`' <> pp op <> char '`' <+> pp b
   pp (OpApp a other _ b) = error "OpApp with a non-HsVar operator"
   pp (NegApp neg _) = string "-" <> pp neg
-  pp (HsPar expr) = lparen <> pp expr <> rparen
+  pp (HsPar expr) = lparen <> nest 1 (pp expr) <> rparen
   pp (SectionL a b) = lparen <> pp a <+> pp b <> rparen
   pp (SectionR a b) = lparen <> pp a <+> pp b <> rparen
   pp (ExplicitTuple exprs _) = tupled exprs
@@ -253,7 +253,7 @@ instance (Print name, IsSymOcc name) => Print (HsExpr name) where
   pp (HsIf _ cond a b) =
     hang 2
       (string "if" <+> pp cond <$> string "then" <+> pp a <$> string "else" <+>
-      pp b)
+       pp b)
   pp (HsLet binds expr) =
     align $ string "let" <+> bindEquals (align (pp binds)) <$> string "in" <+>
     align (pp expr)
@@ -438,9 +438,9 @@ tupled as =
   align
     (vcat
        (sequence $
-       zipWith (<>) (lparen <> (space <|> empty) : repeat (comma <> space))
-         (map pp as)) <$$>
-    rparen)
+        zipWith (<>) (lparen <> (space <|> empty) : repeat (comma <> space))
+          (map pp as)) <$$>
+     rparen)
 
 singleLineTuple :: Print a => [a] -> PrintM Doc
 singleLineTuple xs = lparen <> hsep (punctuate comma (mapM pp xs)) <> rparen
