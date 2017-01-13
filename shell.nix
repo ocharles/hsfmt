@@ -5,7 +5,7 @@ let
   inherit (nixpkgs) pkgs;
 
   f = { mkDerivation, base, ghc-exactprint, stdenv, text
-      , transformers, wl-pprint-text
+      , transformers, wl-pprint-text, mtl
       }:
       mkDerivation {
         pname = "hsfmt";
@@ -14,7 +14,7 @@ let
         isLibrary = false;
         isExecutable = true;
         executableHaskellDepends = [
-          base ghc-exactprint text transformers wl-pprint-text
+          base ghc-exactprint mtl text transformers wl-pprint-text
         ];
         homepage = "https://github.com/ocharles/hsfmt";
         description = "A Haskell source code formatter";
