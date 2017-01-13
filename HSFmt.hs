@@ -87,7 +87,9 @@ instance (Print name) => Print (TyClDecl name) where
     <$>
     indent 2 (vsep (mapM pp tcdSigs))
   pp DataDecl {..} = let HsDataDefn {..} = tcdDataDefn
-                     in (case dd_ND of
+                     in group $ nest 2
+                        $
+                        (case dd_ND of
                            NewType -> string "newtype"
                            DataType -> string "data")
                         <+>
@@ -96,7 +98,7 @@ instance (Print name) => Print (TyClDecl name) where
                         pp tcdTyVars
                         <+>
                         equals
-                        <+>
+                        <$>
                         pp (ConstructorList dd_cons)
 instance (Print name) => Print (LHsQTyVars name) where
   pp HsQTvs {..} = hsep (mapM pp hsq_explicit)
@@ -123,8 +125,8 @@ instance (Print name) => Print (ConDeclField name) where
     pp cd_fld_type
 instance (Print id, Print body) => Print (MatchGroup id body) where
   pp MG {..} = vsep (mapM pp (unLoc mg_alts))
-data SingleMatch name id body = SingleMatch { singleMatchName :: name, 
-                                              singleMatchAlt :: LMatch id body }
+data SingleMatch name id body =
+  SingleMatch { singleMatchName :: name, singleMatchAlt :: LMatch id body }
 instance (Print name, 
           Print id, 
           Print body) => Print (SingleMatch name id body) where
