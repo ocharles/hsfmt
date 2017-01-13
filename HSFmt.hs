@@ -270,6 +270,7 @@ instance (Print name, IsSymOcc name) => Print (HsExpr name) where
   pp RecordCon {..} = pp rcon_con_name <+> lbrace <> pp rcon_flds <> rbrace
   pp RecordUpd {..} =
     pp rupd_expr <+> lbrace <+> pp (CommaList rupd_flds) <+> rbrace
+  pp (ExprWithTySig expr ty) = pp expr <+> string "::" <+> pp ty
 
 instance (Print name, IsSymOcc name) => Print (HsTupArg name) where
   pp (Present expr) = pp expr
