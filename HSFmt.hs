@@ -9,6 +9,7 @@ import Control.Monad.Trans.Writer (WriterT, runWriterT, listen)
 import Control.Monad.Writer.Class (tell)
 import Data.Data
 import Data.Foldable (toList)
+import Data.List (sortOn)
 import qualified Data.Map as Map
 import Data.Maybe (catMaybes)
 import Data.Monoid (Any(..))
@@ -94,7 +95,11 @@ instance (IsSymOcc a, Print a, Eq a, Data a, DataId a)
                string "where")
         imports =
           do guard (not (null hsmodImports))
-             return (lines (mapM pp hsmodImports))
+             return
+               (lines
+                  (mapM pp
+                     (sortOn (moduleNameString . unLoc . ideclName . unLoc)
+                        hsmodImports)))
         decls =
           do guard (not (null hsmodDecls))
              return
