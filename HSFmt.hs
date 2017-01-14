@@ -84,19 +84,13 @@ instance (IsSymOcc a, Print a, Eq a, Data a, DataId a)
     let moduleName =
           flip fmap hsmodName $
           \name ->
+            group $
             hang 2
               (string "module" </> pp name <>
                (case hsmodExports of
                   Nothing -> empty
-                  Just (L _ []) -> softline <> string "()"
-                  Just (L _ (e : es)) ->
-                    line <>
-                    vsep
-                      (do x <- string "(" <> space <> pp e
-                          xs <- mapM (\a -> string ", " <> pp a) es
-                          pure (x : xs)) <>
-                    line <>
-                    string ")") </>
+                  Just (L _ []) -> line <> string "()"
+                  Just (L _ es) -> line <> expandedTupled es) </>
                string "where")
         imports =
           do guard (not (null hsmodImports))
@@ -460,9 +454,12 @@ instance Print ModuleName where
   pp = string . pack . GHC.moduleNameString
 
 tupled :: (Print a) => [a] -> PrintM Doc
-tupled [] = lparen <> rparen
-tupled [a] = lparen <> pp a <> rparen
-tupled as =
+tupled = group . expandedTupled
+
+expandedTupled :: (Print a) => [a] -> PrintM Doc
+expandedTupled [] = lparen <> rparen
+expandedTupled [a] = lparen <> pp a <> rparen
+expandedTupled as =
   group $
   align
     (vcat
