@@ -1,19 +1,20 @@
 module Main where
 
-import NameSet (NameSet)
-import qualified Data.Map as Map
 import BasicTypes (FractionalLit(..), SourceText)
 import Control.Applicative (liftA2)
-import Control.Monad (zipWithM)
+import Control.Monad (guard, zipWithM)
 import Control.Monad.Reader.Class (ask, local)
-import Control.Monad.Writer.Class (tell)
 import Control.Monad.Trans.Reader (Reader, runReader)
 import Control.Monad.Trans.Writer (WriterT, runWriterT, listen)
+import Control.Monad.Writer.Class (tell)
 import Data.Data
 import Data.Foldable (toList)
+import qualified Data.Map as Map
+import Data.Maybe (catMaybes)
 import Data.Monoid (Any(..))
 import Data.Text.Lazy (pack, singleton)
 import qualified Data.Text.Lazy.IO as T
+import Data.Traversable (for)
 import FastString
 import GHC hiding (parseModule)
 import Language.Haskell.GHC.ExactPrint
@@ -21,13 +22,14 @@ import Language.Haskell.GHC.ExactPrint
 import Language.Haskell.GHC.ExactPrint.Types (annGetConstr, commentContents)
 import qualified Module as GHC
 import qualified Name as GHC
+import NameSet (NameSet)
 import qualified OccName as GHC
 import Prelude hiding ((<$>), lines)
 import RdrName
+import System.Environment
 import qualified Text.PrettyPrint.Leijen.Text as PP
 import qualified Text.PrettyPrint.Leijen.Text.Monadic as PPM
 import Text.PrettyPrint.Leijen.Text.Monadic hiding (group, tupled)
-import System.Environment
 
 type PrintM a = WriterT Any (Reader PrintState) a
 
@@ -79,30 +81,33 @@ instance (Print e) => Print (GenLocated l e) where
 instance (IsSymOcc a, Print a, Eq a, Data a, DataId a)
            => Print (HsModule a) where
   pp HsModule {..} =
-    (case hsmodName of
-       Just name ->
-         hang 2
-           (string "module" </> pp name <>
-            (case hsmodExports of
-               Nothing -> empty
-               Just (L _ []) -> softline <> string "()"
-               Just (L _ (e : es)) ->
-                 line <>
-                 vsep
-                   (do x <- string "(" <> space <> pp e
-                       xs <- mapM (\a -> string ", " <> pp a) es
-                       pure (x : xs)) <>
-                 line <>
-                 string ")") </>
-            string "where") <>
-         line <>
-         line) <>
-    lines (mapM pp hsmodImports) <>
-    line <>
-    line <>
-    lines
-      (punctuate line
-         (mapM (lines . mapM (pp . CommentedDecl)) (groupDecls hsmodDecls)))
+    let moduleName =
+          flip fmap hsmodName $
+          \name ->
+            hang 2
+              (string "module" </> pp name <>
+               (case hsmodExports of
+                  Nothing -> empty
+                  Just (L _ []) -> softline <> string "()"
+                  Just (L _ (e : es)) ->
+                    line <>
+                    vsep
+                      (do x <- string "(" <> space <> pp e
+                          xs <- mapM (\a -> string ", " <> pp a) es
+                          pure (x : xs)) <>
+                    line <>
+                    string ")") </>
+               string "where")
+        imports =
+          do guard (not (null hsmodImports))
+             return (lines (mapM pp hsmodImports))
+        decls =
+          do guard (not (null hsmodDecls))
+             return
+               (paragraphs
+                  (mapM (lines . mapM (pp . CommentedDecl))
+                     (groupDecls hsmodDecls)))
+    in paragraphs (sequence (catMaybes [moduleName, imports, decls]))
 
 newtype CommentedDecl id = CommentedDecl (LHsDecl id)
 
@@ -496,3 +501,6 @@ lines ds =
        [] -> empty
        [x] -> pure x
        (x : xs) -> pure x <$!> lines (pure xs)
+
+paragraphs :: PrintM [Doc] -> PrintM Doc
+paragraphs = lines . punctuate line
