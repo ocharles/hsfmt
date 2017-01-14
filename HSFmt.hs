@@ -1,5 +1,7 @@
 module Main where
 
+import NameSet (NameSet)
+import qualified Data.Map as Map
 import BasicTypes (FractionalLit(..), SourceText)
 import Control.Applicative (liftA2)
 import Control.Monad (zipWithM)
@@ -14,7 +16,9 @@ import Data.Text.Lazy (pack, singleton)
 import qualified Data.Text.Lazy.IO as T
 import FastString
 import GHC hiding (parseModule)
-import Language.Haskell.GHC.ExactPrint (parseModule)
+import Language.Haskell.GHC.ExactPrint
+         (Annotation(..), Anns, AnnKey(..), parseModule)
+import Language.Haskell.GHC.ExactPrint.Types (annGetConstr, commentContents)
 import qualified Module as GHC
 import qualified Name as GHC
 import qualified OccName as GHC
@@ -26,6 +30,8 @@ import Text.PrettyPrint.Leijen.Text.Monadic hiding (group, tupled)
 
 type PrintM a = WriterT Any (Reader PrintState) a
 
+-- Group 'LHsDecl's into logical groups. For example, we combine type signatures
+-- with all bindings for that type signature.
 groupDecls :: Eq id => [LHsDecl id] -> [[LHsDecl id]]
 groupDecls [] = []
 groupDecls (x@(L _ (SigD (TypeSig names _))) : xs) =
@@ -52,14 +58,14 @@ prettyPrintFile path =
   do out <- parseModule path
      case out of
        Left e -> error (show e)
-       Right (_, parsed) ->
+       Right (anns, parsed) ->
          return $
-         runReader (fmap fst (runWriterT (pp parsed))) initialPrintState
+         runReader (fmap fst (runWriterT (pp parsed))) (initialPrintState anns)
 
-data PrintState = PrintState { bindSymbol :: PrintM Doc }
+data PrintState = PrintState { bindSymbol :: PrintM Doc, anns :: Anns }
 
-initialPrintState :: PrintState
-initialPrintState = PrintState {bindSymbol = string "="}
+initialPrintState :: Anns -> PrintState
+initialPrintState anns = PrintState {bindSymbol = string "=", anns = anns}
 
 class Print a where
   pp :: a -> PrintM Doc
@@ -67,7 +73,8 @@ class Print a where
 instance (Print e) => Print (GenLocated l e) where
   pp (L _ a) = pp a
 
-instance (IsSymOcc a, Print a, Eq a) => Print (HsModule a) where
+instance (IsSymOcc a, Print a, Eq a, Data a, DataId a)
+           => Print (HsModule a) where
   pp HsModule {..} =
     (case hsmodName of
        Just name ->
@@ -90,7 +97,28 @@ instance (IsSymOcc a, Print a, Eq a) => Print (HsModule a) where
     lines (mapM pp hsmodImports) <>
     line <>
     line <>
-    lines (punctuate line (mapM (lines . mapM pp) (groupDecls hsmodDecls)))
+    lines
+      (punctuate line
+         (mapM (lines . mapM (pp . CommentedDecl)) (groupDecls hsmodDecls)))
+
+newtype CommentedDecl id = CommentedDecl (LHsDecl id)
+
+instance (Print id, IsSymOcc id, Data id, DataId id)
+           => Print (CommentedDecl id) where
+  pp (CommentedDecl (L l a@(SigD typeSig@TypeSig{}))) =
+    do PrintState{anns} <- ask
+       (case Map.lookup (AnnKey l (annGetConstr typeSig)) anns of
+          Just Ann {..} ->
+            case annPriorComments of
+              [] -> empty
+              comments ->
+                lines
+                  (mapM (\(comment, _) -> text (pack (commentContents comment)))
+                     comments) <>
+                mandatoryLine
+          Nothing -> empty) <>
+         pp a
+  pp (CommentedDecl other) = pp other
 
 instance (Print name, IsSymOcc name) => Print (HsDecl name) where
   pp (SigD sig) = pp sig
@@ -368,19 +396,20 @@ instance (Print name, IsSymOcc name) => Print (HsAppType name) where
 
 instance (Print name, IsSymOcc name) => Print (ImportDecl name) where
   pp ImportDecl {..} =
-    string "import" <+>
+    group $ string "import" <+>
     (if ideclQualified
        then string "qualified" <> space
        else empty) <>
-    pp ideclName <>
-    (case ideclAs of
-       Just n -> space <> string "as" <+> pp n
-       Nothing -> empty) <>
-    (case ideclHiding of
-       Just (hiding, L _ names) ->
-         space <> (if hiding then string "hiding" <> space else empty) <>
-         tupled names
-       Nothing -> empty)
+    hang 2
+      (pp ideclName <>
+       (case ideclAs of
+          Just n -> space <> string "as" <+> pp n
+          Nothing -> empty) <>
+       (case ideclHiding of
+          Just (hiding, L _ names) ->
+            line <> (if hiding then string "hiding" <> space else empty) <>
+            tupled names
+          Nothing -> empty))
 
 instance (IsSymOcc a, Print a) => Print (IE a) where
   pp (IEVar n) = pp (fmap InfixOccName n)
@@ -451,6 +480,11 @@ group child =
 (<$!>) l r =
   do tell (Any True)
      l <$> r
+
+mandatoryLine :: PrintM Doc
+mandatoryLine =
+  do tell (Any True)
+     line
 
 lines :: PrintM [Doc] -> PrintM Doc
 lines ds =
