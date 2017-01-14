@@ -27,6 +27,7 @@ import RdrName
 import qualified Text.PrettyPrint.Leijen.Text as PP
 import qualified Text.PrettyPrint.Leijen.Text.Monadic as PPM
 import Text.PrettyPrint.Leijen.Text.Monadic hiding (group, tupled)
+import System.Environment
 
 type PrintM a = WriterT Any (Reader PrintState) a
 
@@ -51,7 +52,9 @@ splitNames names (x : xs) =
     _ -> ([], x : xs)
 
 main :: IO ()
-main = prettyPrintFile "HSFmt.hs" >>= T.putStrLn . displayT . renderPretty 1 80
+main =
+  do [file] <- getArgs
+     prettyPrintFile file >>= T.putStrLn . displayT . renderPretty 1 80
 
 prettyPrintFile :: FilePath -> IO (Doc)
 prettyPrintFile path =
