@@ -148,16 +148,23 @@ instance (Print name, IsSymOcc name) => Print (TyClDecl name) where
        (case dd_ND of
           NewType -> string "newtype"
           DataType -> string "data") <+>
-       pp tcdLName <+>
-       pp tcdTyVars <+>
-       equals <$>
-       pp (ConstructorList dd_cons)
+       pp tcdLName <>
+       (case hsq_explicit tcdTyVars of
+          [] -> empty
+          _ -> space <> pp tcdTyVars) <>
+       (case dd_kindSig of
+          Just sig -> space <> string "::" <+> pp sig
+          Nothing -> empty) <>
+       (case dd_cons of
+          [] -> empty
+          cons -> space <> equals <$> pp (ConstructorList dd_cons))
 
-instance (Print name) => Print (LHsQTyVars name) where
+instance (Print name, IsSymOcc name) => Print (LHsQTyVars name) where
   pp HsQTvs {..} = hsep (mapM pp hsq_explicit)
 
-instance (Print name) => Print (HsTyVarBndr name) where
+instance (Print name, IsSymOcc name) => Print (HsTyVarBndr name) where
   pp (UserTyVar n) = pp n
+  pp (KindedTyVar n k) = lparen <> pp n <+> string "::" <+> pp k <> rparen
 
 newtype ConstructorList thing = ConstructorList [thing]
 
@@ -372,7 +379,8 @@ instance (Print name) => Print (FieldOcc name) where
   pp FieldOcc {..} = pp rdrNameFieldOcc
 
 instance (Print name, IsSymOcc name) => Print (HsType name) where
-  pp HsForAllTy{} = error "HsForAllTy"
+  pp HsForAllTy {..} =
+    string "forall" <+> hsep (mapM pp hst_bndrs) <> dot <+> pp hst_body
   pp HsQualTy {..} =
     (case unLoc hst_ctxt of
        [] -> empty
@@ -388,13 +396,27 @@ instance (Print name, IsSymOcc name) => Print (HsType name) where
   pp (HsAppsTy types) = hsep (mapM pp types)
   pp (HsAppTy l r) = pp l <+> pp r
   pp (HsFunTy a b) = pp a <$> string "->" <+> pp b
+  pp (HsListTy name) = lbracket <> pp name <> rbracket
   pp HsPArrTy{} = error "HsPArrTy"
   pp (HsTupleTy _ ts) = tupled ts
+  pp HsOpTy{} = error "HsOpTy"
   pp (HsParTy name) = lparen <> pp name <> rparen
-  pp (HsListTy name) = lbracket <> pp name <> rbracket
+  pp HsIParamTy{} = error "HsIParamTy"
+  pp HsEqTy{} = error "HsEqTy"
+  pp HsKindSig{} = error "HsKindSig"
+  pp HsSpliceTy{} = error "HsSpliceTy"
+  pp HsDocTy{} = error "HsDocTy"
+  pp HsBangTy{} = error "HsBangTy"
+  pp HsRecTy{} = error "HsRecTy"
+  pp (HsCoreTy t) = error "HsCoreTy"
+  pp HsExplicitListTy{} = error "HsExplicitListTy"
+  pp HsExplicitTupleTy{} = error "HsExplicitTupleTy"
+  pp HsTyLit{} = error "HsTyLit"
+  pp HsWildCardTy{} = error "HsWildCardTy"
 
 instance (Print name, IsSymOcc name) => Print (HsAppType name) where
-  pp (HsAppPrefix (L _ a)) = pp a
+  pp (HsAppPrefix a) = pp a
+  pp (HsAppInfix a) = pp a
 
 instance (Print name, IsSymOcc name) => Print (ImportDecl name) where
   pp ImportDecl {..} =
