@@ -28,9 +28,9 @@ import qualified OccName as GHC
 import Prelude hiding ((<$>), lines)
 import RdrName
 import System.Environment
-import qualified Text.PrettyPrint.Leijen.Text as PP
-import qualified Text.PrettyPrint.Leijen.Text.Monadic as PPM
-import Text.PrettyPrint.Leijen.Text.Monadic hiding (group, tupled)
+import qualified PrettyPrint as PP
+import qualified PrettyPrint.Lifted as PPM
+import PrettyPrint.Lifted hiding (group, tupled)
 
 type PrintM a = WriterT Any (Reader PrintState) a
 
@@ -57,7 +57,7 @@ splitNames names (x : xs) =
 main :: IO ()
 main =
   do [file] <- getArgs
-     prettyPrintFile file >>= T.putStrLn . displayT . renderPretty 1 80
+     prettyPrintFile file >>= T.putStrLn . displayT . renderSmart 80
 
 prettyPrintFile :: FilePath -> IO (Doc)
 prettyPrintFile path =
@@ -491,15 +491,12 @@ expandedTupled as =
   align
     (vcat
        (sequence $
-        zipWith (<>) (lparen <> (space <|> empty) : repeat (comma <> space))
+        zipWith (<>) (lparen <> expanded space empty : repeat (comma <> space))
           (map pp as)) <$$>
      rparen)
 
 singleLineTuple :: Print a => [a] -> PrintM Doc
 singleLineTuple xs = lparen <> hsep (punctuate comma (mapM pp xs)) <> rparen
-
-(<|>) :: Applicative m => m Doc -> m Doc -> m Doc
-(<|>) = liftA2 (PP.<|>)
 
 group :: PrintM Doc -> PrintM Doc
 group child =
