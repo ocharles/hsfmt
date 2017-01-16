@@ -26,11 +26,11 @@ import qualified Name as GHC
 import NameSet (NameSet)
 import qualified OccName as GHC
 import Prelude hiding ((<$>), lines)
-import RdrName
-import System.Environment
 import qualified PrettyPrint as PP
 import qualified PrettyPrint.Lifted as PPM
 import PrettyPrint.Lifted hiding (group, tupled)
+import RdrName
+import System.Environment
 
 type PrintM a = WriterT Any (Reader PrintState) a
 
@@ -121,10 +121,8 @@ instance (Print id, IsSymOcc id, Data id, DataId id)
               comments ->
                 lines
                   (mapM (\(comment, _) -> text (pack (commentContents comment)))
-                     comments) <>
-                mandatoryLine
-          Nothing -> empty) <>
-         pp a
+                     comments) <> mandatoryLine
+          Nothing -> empty) <> pp a
   pp (CommentedDecl other) = pp other
 
 instance (Print name, IsSymOcc name) => Print (HsDecl name) where
@@ -152,8 +150,7 @@ instance (Print name, IsSymOcc name) => Print (TyClDecl name) where
     in group $ nest 2 $
        (case dd_ND of
           NewType -> string "newtype"
-          DataType -> string "data") <+>
-       pp tcdLName <>
+          DataType -> string "data") <+> pp tcdLName <>
        (case hsq_explicit tcdTyVars of
           [] -> empty
           _ -> space <> pp tcdTyVars) <>
@@ -206,11 +203,10 @@ instance (Print name, Print id, Print body, IsSymOcc name, IsSymOcc id)
 
 instance (Print id, Print body, IsSymOcc id) => Print (Match id body) where
   pp Match {..} =
-    cat (mapM (\pat -> pp pat <> space) m_pats) <>
+    nest 2 (cat (mapM (\pat -> pp pat <> space) m_pats)) <>
     (case m_type of
        Nothing -> empty
-       Just a -> pp a) <>
-    pp m_grhss
+       Just a -> pp a) <> pp m_grhss
 
 instance (Print body, Print id, IsSymOcc id) => Print (GRHSs id body) where
   pp GRHSs {..} = vsep (mapM pp grhssGRHSs)
@@ -268,9 +264,9 @@ instance (Print name, IsSymOcc name) => Print (HsExpr name) where
   pp (HsApp l r) = group $ hang 2 (pp l <$> group (pp r))
   pp HsAppType{} = error "HsAppType"
   pp HsAppTypeOut{} = error "HsAppTypeOut"
-  pp (OpApp a (L _ (HsVar op)) _ b)   | isSymOcc op =   group
-                                                          (pp a <+> pp op <$>
-                                                           pp b)
+  pp (OpApp a (L _ (HsVar op)) _ b)   | isSymOcc op =   group (pp a) <+>
+                                                        pp op <>
+                                                        group (line <> pp b)
     | otherwise =   pp a <+> char '`' <> pp op <> char '`' <+> pp b
   pp (OpApp a other _ b) = error "OpApp with a non-HsVar operator"
   pp (NegApp neg _) = string "-" <> pp neg
@@ -290,7 +286,7 @@ instance (Print name, IsSymOcc name) => Print (HsExpr name) where
        pp b)
   pp (HsLet binds expr) =
     align $ string "let" <+> bindEquals (align (pp binds)) <$> string "in" <+>
-    align (pp expr)
+    align (group (pp expr))
   pp (ExplicitList _ _ elems) = lbracket <> pp (CommaList elems) <> rbracket
   pp RecordCon {..} = pp rcon_con_name <+> lbrace <> pp rcon_flds <> rbrace
   pp RecordUpd {..} =
@@ -393,10 +389,7 @@ instance (Print name, IsSymOcc name) => Print (HsType name) where
          group $
          (case ctx of
             [one] -> pp one
-            ts -> tupled ts) <$>
-         string "=>" <>
-         space) <>
-    pp hst_body
+            ts -> tupled ts) <$> string "=>" <> space) <> pp hst_body
   pp (HsTyVar name) = pp name
   pp (HsAppsTy types) = hsep (mapM pp types)
   pp (HsAppTy l r) = pp l <+> pp r
@@ -492,8 +485,7 @@ expandedTupled as =
     (vcat
        (sequence $
         zipWith (<>) (lparen <> expanded space empty : repeat (comma <> space))
-          (map pp as)) <$$>
-     rparen)
+          (map pp as)) <$$> rparen)
 
 singleLineTuple :: Print a => [a] -> PrintM Doc
 singleLineTuple xs = lparen <> hsep (punctuate comma (mapM pp xs)) <> rparen
