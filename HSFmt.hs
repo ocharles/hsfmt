@@ -1,5 +1,6 @@
 module Main where
 
+import Control.Monad.IO.Class
 import BasicTypes (FractionalLit(..), SourceText)
 import Control.Applicative (liftA2)
 import Control.Monad (guard, zipWithM)
@@ -18,6 +19,7 @@ import qualified Data.Text.Lazy.IO as T
 import Data.Traversable (for)
 import FastString
 import GHC hiding (parseModule)
+import qualified GHC
 import Language.Haskell.GHC.ExactPrint
          (Annotation(..), Anns, AnnKey(..), parseModule)
 import Language.Haskell.GHC.ExactPrint.Types (annGetConstr, commentContents)
@@ -31,6 +33,7 @@ import qualified PrettyPrint.Lifted as PPM
 import PrettyPrint.Lifted hiding (group, tupled)
 import RdrName
 import System.Environment
+import GHC.Paths (libdir)
 
 type PrintM a = WriterT Any (Reader PrintState) a
 
@@ -65,8 +68,16 @@ prettyPrintFile path =
      case out of
        Left e -> error (show e)
        Right (anns, parsed) ->
-         return $
-         runReader (fmap fst (runWriterT (pp parsed))) (initialPrintState anns)
+         -- typed <- runGhc (Just libdir) $ do
+         --   dFlags <- getSessionDynFlags
+         --   setSessionDynFlags dFlags { hscTarget = HscNothing }
+         --   t <- guessTarget path Nothing
+         --   setTargets [t]
+         --   load LoadAllTargets
+         --   [m] <- getModuleGraph
+         --   getModSummary (moduleName . ms_mod $ m) >>= GHC.parseModule >>= typecheckModule
+         -- let Just (g,_,_,_) = renamedSource typed
+         return $ runReader (fmap fst (runWriterT (pp parsed))) (initialPrintState anns)
 
 data PrintState = PrintState { bindSymbol :: PrintM Doc, anns :: Anns }
 
@@ -209,12 +220,12 @@ instance (Print id, Print body, IsSymOcc id) => Print (Match id body) where
        Just a -> pp a) <> pp m_grhss
 
 instance (Print body, Print id, IsSymOcc id) => Print (GRHSs id body) where
-  pp GRHSs {..} = vsep (mapM pp grhssGRHSs)
+  pp GRHSs {..} = vsep (punctuate mandatoryLine (mapM pp grhssGRHSs))
 
 instance (Print body, Print id, IsSymOcc id) => Print (GRHS id body) where
   pp (GRHS [] body) =
     do PrintState{bindSymbol} <- ask
-       group (nest 2 (bindSymbol <$> pp body))
+       nest 2 (bindSymbol <$$> pp body)
   pp (GRHS guards body) =
     do PrintState{bindSymbol} <- ask
        indent 2
@@ -262,7 +273,7 @@ instance (Print name, IsSymOcc name) => Print (HsExpr name) where
   pp (HsLam mg) = string "\\" <> bindRArrow (pp mg)
   pp HsLamCase{} = error "HsLamCase"
   pp (HsApp l r) = group $ hang 2 (pp l <$> group (pp r))
-  pp HsAppType{} = error "HsAppType"
+  pp (HsAppType expr t) = pp expr <+> text "@" <> pp t
   pp HsAppTypeOut{} = error "HsAppTypeOut"
   pp (OpApp a (L _ (HsVar op)) _ b)   | isSymOcc op =   group (pp a) <+>
                                                         pp op <>
@@ -285,13 +296,20 @@ instance (Print name, IsSymOcc name) => Print (HsExpr name) where
       (string "if" <+> pp cond <$> string "then" <+> pp a <$> string "else" <+>
        pp b)
   pp (HsLet binds expr) =
-    align $ string "let" <+> bindEquals (align (pp binds)) <$> string "in" <+>
+    align $ string "let" <$$> indent 2 (bindEquals (align (pp binds))) <$> string "in" <+>
     align (group (pp expr))
   pp (ExplicitList _ _ elems) = lbracket <> pp (CommaList elems) <> rbracket
   pp RecordCon {..} = pp rcon_con_name <+> lbrace <> pp rcon_flds <> rbrace
   pp RecordUpd {..} =
     pp rupd_expr <+> lbrace <+> pp (CommaList rupd_flds) <+> rbrace
   pp (ExprWithTySig expr ty) = pp expr <+> string "::" <+> pp ty
+  pp (ArithSeq _ _ arithSeq) = lbracket <> pp arithSeq <> rbracket
+
+instance (IsSymOcc name, Print name) => Print (ArithSeqInfo name) where
+  pp (From a) = pp a <> text ".."
+  pp (FromThen a b) = pp a <> comma <+> pp b <> comma <+> text ".."
+  pp (FromTo a b) = pp a <+> text ".." <+> pp b
+  pp (FromThenTo a b c) = pp a <> comma <+> pp b <> comma <+> text ".." <+> pp c
 
 instance (Print name, IsSymOcc name) => Print (HsTupArg name) where
   pp (Present expr) = pp expr
@@ -307,7 +325,8 @@ instance (Print idL, Print idR, IsSymOcc idL, IsSymOcc idR)
 
 instance (Print idL, Print idR, IsSymOcc idL, IsSymOcc idR)
            => Print (HsValBindsLR idL idR) where
-  pp (ValBindsIn binds _) = vsep (mapM pp (toList binds))
+  pp (ValBindsIn binds _) = vsep (punctuate line (mapM pp (toList binds)))
+  pp (ValBindsOut binds _) = vsep (mapM (vsep . mapM pp . toList . snd) binds)
 
 instance (Print name) => Print (AmbiguousFieldOcc name) where
   pp (Unambiguous n _) = pp n
@@ -346,7 +365,7 @@ instance (Print body, Print idL, Print idR, IsSymOcc idL, IsSymOcc idR)
 instance (Print name) => Print (Pat name) where
   pp WildPat{} = string "_"
   pp (VarPat name) = pp name
-  pp LazyPat{} = error "LazyPat"
+  pp (LazyPat name) = text "~" <> pp name
   pp (AsPat x y) = pp x <> string "@" <> pp y
   pp (ParPat p) = lparen <> pp p <> rparen
   pp BangPat{} = error "BangPat"
@@ -404,13 +423,24 @@ instance (Print name, IsSymOcc name) => Print (HsType name) where
   pp HsKindSig{} = error "HsKindSig"
   pp HsSpliceTy{} = error "HsSpliceTy"
   pp HsDocTy{} = error "HsDocTy"
-  pp HsBangTy{} = error "HsBangTy"
+  pp (HsBangTy a b) = text "!" <> pp a <> pp b
   pp HsRecTy{} = error "HsRecTy"
   pp (HsCoreTy t) = error "HsCoreTy"
   pp HsExplicitListTy{} = error "HsExplicitListTy"
   pp HsExplicitTupleTy{} = error "HsExplicitTupleTy"
-  pp HsTyLit{} = error "HsTyLit"
+  pp (HsTyLit a) = pp a
   pp HsWildCardTy{} = error "HsWildCardTy"
+
+instance Print HsSrcBang where
+  pp (HsSrcBang _ unpackedness strictness) =
+    pure $
+    mconcat [ case unpackedness of
+                _ -> mempty
+            , case strictness of
+                SrcLazy -> "~"
+                SrcStrict -> "!"
+                NoSrcStrict -> ""
+            ]
 
 instance (Print name, IsSymOcc name) => Print (HsAppType name) where
   pp (HsAppPrefix a) = pp a
@@ -467,11 +497,21 @@ instance (Print name, IsSymOcc name) => Print (InfixOccName name) where
                                                      rparen
     | otherwise =   pp occName
 
+instance Print Name where
+  pp = pp . GHC.occName
+
+instance IsSymOcc Name where
+  isSymOcc = isSymOcc . GHC.occName
+
 instance Print GHC.OccName where
   pp n = string (pack (GHC.occNameString n))
 
 instance Print ModuleName where
   pp = string . pack . GHC.moduleNameString
+
+instance Print HsTyLit where
+  pp (HsNumTy _ i) = pp i
+  pp (HsStrTy _ s) = squote <> text (pack (show s)) <> squote
 
 tupled :: (Print a) => [a] -> PrintM Doc
 tupled = group . expandedTupled
