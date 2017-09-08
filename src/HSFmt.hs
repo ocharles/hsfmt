@@ -212,25 +212,16 @@ parensExpr a = pretty a
 
 instance Pretty (HsExpr RdrName) where
   pretty (HsVar id_) = pretty id_
-  pretty HsUnboundVar {} = "HsUnboundVar"
-  pretty HsRecFld {} = "HsRecFld"
-  pretty HsOverLabel {} = "HsOverLabel"
-  pretty HsIPVar {} = "HsIPVar"
   pretty (HsOverLit a) = pretty a
   pretty (HsLit lit) = pretty lit
   pretty (HsLam mg) = "\\" <> prettyMatchGroup "->" mg
-  pretty HsLamCase {} = "HsLamCase"
   pretty (HsApp a b) = parensExpr (unLoc a) <+> parensExpr (unLoc b)
-  pretty HsAppType {} = "HsAppType"
-  pretty HsAppTypeOut {} = "HsAppTypeOut"
   pretty (OpApp (L _ a) (L _ (HsVar op)) _ (L _ b))
     | HSFmt.isSymOcc op = parensExpr a <+> pretty op <+> parensExpr b
     | otherwise = parensExpr a <+> "`" <> pretty op <> "`" <+> parensExpr b
   pretty (OpApp a other _ b) = error "OpApp with a non-HsVar operator"
   pretty (NegApp a _) = "-" <> pretty a
   pretty (HsPar expr) = parens (pretty expr)
-  pretty SectionL {} = "SectionL"
-  pretty SectionR {} = "SectionR"
   pretty (ExplicitTuple args _) =
     parens $ hsep $ punctuate comma (map pretty args)
   pretty (HsCase expr MG {mg_alts}) =
@@ -267,32 +258,8 @@ instance Pretty (HsExpr RdrName) where
          (map pretty (unLoc exprs)))
   pretty (ExplicitList _ _ exprs) =
     brackets $ hsep $ punctuate comma $ map pretty exprs
-  pretty ExplicitPArr {} = "ExplicitPArr"
   pretty RecordCon {rcon_con_name, rcon_flds} =
     pretty rcon_con_name <+> pretty rcon_flds
-  pretty RecordUpd {} = "RecordUpd"
-  pretty ExprWithTySig {} = "ExprWithTySig"
-  pretty ExprWithTySigOut {} = "ExprWithTySigOut"
-  pretty ArithSeq {} = "ArithSeq"
-  pretty PArrSeq {} = "PArrSeq"
-  pretty HsSCC {} = "HsSCC"
-  pretty HsCoreAnn {} = "HsCoreAnn"
-  pretty HsBracket {} = "HsBracket"
-  pretty HsRnBracketOut {} = "HsRnBracketOut"
-  pretty HsTcBracketOut {} = "HsTcBracketOut"
-  pretty (HsSpliceE a) = pretty a
-  pretty HsProc {} = "HsProc"
-  pretty HsStatic {} = "HsStatic"
-  pretty HsArrApp {} = "HsArrApp"
-  pretty HsArrForm {} = "HsArrForm"
-  pretty HsTick {} = "HsTick"
-  pretty HsBinTick {} = "HsBinTick"
-  pretty HsTickPragma {} = "HsTickPragma"
-  pretty EWildPat {} = "EWildPat"
-  pretty EAsPat {} = "EAsPat"
-  pretty EViewPat {} = "EViewPat"
-  pretty ELazyPat {} = "ELazyPat"
-  pretty HsWrap {} = "HsWrap"
 
 instance Pretty (HsRecordBinds RdrName) where
   pretty HsRecFields {rec_flds, rec_dotdot} =
@@ -306,12 +273,10 @@ instance Pretty (HsRecField RdrName (LHsExpr RdrName)) where
     pretty hsRecFieldLbl <+> equals <+> pretty hsRecFieldArg
 
 instance Pretty (HsSplice RdrName) where
-  pretty HsTypedSplice {} = "HsTypedSplice"
   pretty (HsUntypedSplice id_ expr) = pretty expr
   pretty (HsQuasiQuote a b _ src) =
     brackets
       (pretty b <> "|" <> column (\n -> indent (negate n) (pretty src)) <> "|")
-  pretty HsSpliced {} = "HsSpliced"
 
 instance Pretty (Located [ExprLStmt RdrName]) where
   pretty (L _loc a) = pretty a
@@ -363,14 +328,7 @@ instance Pretty (LHsSigType RdrName) where
 instance Pretty (Sig RdrName) where
   pretty (TypeSig names sig) =
     hsep (punctuate comma (map pretty names)) <+> "::" <+> pretty sig
-  pretty PatSynSig{} = "PatSynSig"
   pretty (ClassOpSig a b c) = hsep (punctuate comma (map pretty b)) <+> "::" <+> pretty c
-  pretty IdSig{} = "IdSig"
-  pretty FixSig{} = "FixSig"
-  pretty InlineSig{} = "InlineSig"
-  pretty SpecSig{} = "SpecSig"
-  pretty SpecInstSig{} = "SpecInstSig"
-  pretty MinimalSig{} = "MinimalSig"
 
 instance Pretty (LHsSigWcType RdrName) where
   pretty HsIB {hsib_body} = pretty hsib_body
@@ -468,8 +426,6 @@ instance Pretty OccName where
   pretty = pretty . occNameString
 
 
-newtype InfixOccName name = InfixOccName name
-
 class IsSymOcc a where
   isSymOcc :: a -> Bool
 
@@ -482,18 +438,8 @@ instance IsSymOcc RdrName where
 instance IsSymOcc b => IsSymOcc (GenLocated a b) where
   isSymOcc = HSFmt.isSymOcc . unLoc
 
-instance (Pretty name, IsSymOcc name) =>
-         Pretty (InfixOccName name) where
-  pretty (InfixOccName occName)
-    | HSFmt.isSymOcc occName = parens (pretty occName)
-    | otherwise = pretty occName
-
-
 hardVsep :: [Doc ann] -> Doc ann
 hardVsep = concatWith (\x y -> x <> hardline <> y)
-
-x y | y == True, y == False = 42
-    | y == False = 43
 
 prettyBind :: Doc ann -> HsBind RdrName -> Doc ann
 prettyBind bind hsBind =
@@ -506,9 +452,6 @@ prettyBind bind hsBind =
     PatBind {pat_lhs, pat_rhs} ->
       align $ parPat (unLoc pat_lhs) <+> prettyGRHSs bind pat_rhs
     VarBind {var_id, var_rhs} -> pretty var_id <+> bind <> hardline <> indent 2 (pretty var_rhs)
-    AbsBinds {} -> "AbsBinds"
-    AbsBindsSig {} -> "AbsBindsSig"
-    PatSynBind {} -> "PatSynBind"
 
 prettyMatch :: Doc ann -> Match RdrName (LHsExpr RdrName) -> Doc ann
 prettyMatch bind Match {m_pats, m_grhss} =
@@ -536,8 +479,6 @@ prettyGRHS bind (GRHS guards body) =
   "|" <+> hsep (punctuate comma (map pretty guards)) <+> bind <+> pretty body
 
 prettyHsLocalBinds bind (HsValBinds b) = prettyHsValBindsLR bind b
-prettyHsLocalBinds bind HsIPBinds{} = "HsIPBinds"
-prettyHsLocalBinds bind EmptyLocalBinds = "EmptyLocalBinds"
 
 prettyHsValBindsLR bind (ValBindsIn bnds _) =
   concatWith (\x y -> x <> hardline <> hardline <> y) $
