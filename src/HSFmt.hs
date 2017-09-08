@@ -106,12 +106,15 @@ instance Pretty (TyClDecl RdrName) where
        foldMap (\a -> space <> "deriving" <+> pretty a) dd_derivs
   pretty ClassDecl {..} =
     "class" <+>
-    pretty tcdLName <+>
+    pretty tcdLName <+> pretty tcdTyVars <+>
     "where" <> hardline <>
     indent
       2
       (concatWith (\x y -> x <> hardline <> hardline <> y) $
        map (prettyBind equals . unLoc) (toList tcdMeths) ++ map pretty tcdSigs)
+
+instance Pretty (LHsQTyVars RdrName) where
+  pretty HsQTvs{..} = hsep $ map pretty hsq_explicit
 
 instance Pretty (LHsTyVarBndr RdrName) where
   pretty (L _loc a) = pretty a
