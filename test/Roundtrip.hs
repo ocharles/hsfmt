@@ -1,9 +1,10 @@
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE TypeSynonymInstances #-}
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE RecordWildCards #-}
-{-# LANGUAGE DefaultSignatures #-}
-{-# LANGUAGE TemplateHaskell #-}
+{-# language DefaultSignatures #-}
+{-# language FlexibleInstances #-}
+{-# language OverloadedStrings #-}
+{-# language RecordWildCards #-}
+{-# language TemplateHaskell #-}
+{-# language TypeSynonymInstances #-}
+
 module Main where
 
 import Data.Algorithm.Diff
@@ -115,6 +116,7 @@ instance SynEq GHC.RdrName where
 
 instance SynEq Char where
 
+genModule :: Gen (GHC.HsModule RdrName.RdrName)
 genModule = do
   hsmodName <- Gen.maybe . located $ genModuleName
   hsmodImports <- Gen.list (Range.linear 0 10) (located genImportDecl)
@@ -124,6 +126,7 @@ genModule = do
   hsmodHaddockModHeader <- pure Nothing
   pure GHC.HsModule { ..}
 
+genDecl :: Gen (GHC.HsDecl RdrName.RdrName)
 genDecl =
   Gen.choice
     [ GHC.TyClD <$> genTyClDecl
@@ -133,10 +136,12 @@ genDecl =
     , GHC.ValD <$> genBind
     ]
 
+genSpliceDecl :: Gen (GHC.SpliceDecl RdrName.RdrName)
 genSpliceDecl =
   GHC.SpliceDecl <$> located genHsSplice <*>
   Gen.element [GHC.ExplicitSplice, GHC.ImplicitSplice]
 
+genHsSplice :: Gen (GHC.HsSplice RdrName.RdrName)
 genHsSplice =
   Gen.choice
     [
@@ -145,9 +150,11 @@ genHsSplice =
      GHC.HsUntypedSplice <$> genName <*> located genExpr
     ]
 
+genInstDecl :: Gen (GHC.InstDecl RdrName.RdrName)
 genInstDecl =
   Gen.choice [ GHC.ClsInstD <$> genClsInstDecl ]
 
+genClsInstDecl :: Gen (GHC.ClsInstDecl RdrName.RdrName)
 genClsInstDecl =
   GHC.ClsInstDecl <$> genLHsSigType <*> genBinds <*>
   pure [] <*>
@@ -155,23 +162,25 @@ genClsInstDecl =
   pure []<*>
   pure Nothing
 
+genLDataFamInstDecl :: Gen (GHC.Located (GHC.DataFamInstDecl RdrName.RdrName))
 genLDataFamInstDecl = located genDataFamInstDecl
 
+genDataFamInstDecl :: Gen (GHC.DataFamInstDecl RdrName.RdrName)
 genDataFamInstDecl =
   GHC.DataFamInstDecl <$> located genName <*> genHsTyPats <*> genHsDataDefn <*>
   pure GHC.PlaceHolder
 
+genHsTyPats
+  :: Gen (GHC.HsImplicitBndrs RdrName.RdrName [GHC.Located (GHC.HsType RdrName.RdrName)])
 genHsTyPats =
   GHC.HsIB <$> pure GHC.PlaceHolder <*>
   (Gen.list (Range.linear 0 10) (located genHsType))
 
+genHsImplicitBndrs
+  :: Gen (GHC.HsImplicitBndrs RdrName.RdrName (GHC.Located (GHC.HsType RdrName.RdrName)))
 genHsImplicitBndrs = GHC.HsIB <$> pure GHC.PlaceHolder <*> located genHsType
 
--- genLHsBinds =
---   Bag.listToBag <$> genBinds
-
--- genLSig = located genSig
-
+genSig :: Gen (GHC.Sig RdrName.RdrName)
 genSig =
   Gen.choice
     [ GHC.TypeSig <$> Gen.list (Range.linear 1 10) (located genName) <*>
@@ -179,6 +188,7 @@ genSig =
        (GHC.HsWC <$> pure GHC.PlaceHolder <*> pure Nothing <*> located genHsType))
     ]
 
+genTyClDecl :: Gen (GHC.TyClDecl RdrName.RdrName)
 genTyClDecl = Gen.choice [dataDecl, synDecl, classDecl]
   where
     dataDecl =
@@ -199,13 +209,16 @@ genTyClDecl = Gen.choice [dataDecl, synDecl, classDecl]
       pure [] <*>
       pure GHC.PlaceHolder
 
+genLHsQTyVars :: Gen (GHC.LHsQTyVars RdrName.RdrName)
 genLHsQTyVars =
   GHC.HsQTvs <$> pure GHC.PlaceHolder <*>
   Gen.list (Range.linear 0 10) (located genHsTyVarBndr) <*>
   pure GHC.PlaceHolder
 
+genHsTyVarBndr :: Gen (GHC.HsTyVarBndr RdrName.RdrName)
 genHsTyVarBndr = Gen.choice [GHC.UserTyVar <$> located genName]
 
+genHsDataDefn :: Gen (GHC.HsDataDefn RdrName.RdrName)
 genHsDataDefn = do
   newOrData <- genNewOrData
   GHC.HsDataDefn <$> pure newOrData <*>
@@ -219,10 +232,17 @@ genHsDataDefn = do
       (located genConDecl) <*>
     genHsDeriving
 
+genHsDeriving
+  :: Gen (Maybe (GHC.Located [GHC.HsImplicitBndrs RdrName.RdrName (GHC.Located (GHC.HsType RdrName.RdrName))]))
 genHsDeriving = Gen.maybe (located (Gen.list (Range.linear 0 10) genLHsSigType))
 
+genLHsSigType
+  :: Gen
+       (GHC.HsImplicitBndrs
+          RdrName.RdrName (GHC.Located (GHC.HsType RdrName.RdrName)))
 genLHsSigType = genHsImplicitBndrs
 
+genConDecl :: Gen (GHC.ConDecl RdrName.RdrName)
 genConDecl =
   Gen.choice
     [ GHC.ConDeclH98 <$> located genTypeName <*> Gen.maybe genLHsQTyVars <*>
@@ -231,6 +251,8 @@ genConDecl =
       pure Nothing
     ]
 
+genHsConDeclDetails
+  :: Gen (GHC.HsConDetails (GHC.Located (GHC.HsType RdrName.RdrName)) (GHC.Located [GHC.Located (GHC.ConDeclField RdrName.RdrName)]))
 genHsConDeclDetails =
   Gen.choice
     [ GHC.PrefixCon <$> Gen.list (Range.linear 0 10) (located genHsType)
@@ -238,6 +260,7 @@ genHsConDeclDetails =
       located (Gen.list (Range.linear 0 10) (located genConDeclField))
     ]
 
+genConDeclField :: Gen (GHC.ConDeclField RdrName.RdrName)
 genConDeclField =
   GHC.ConDeclField <$>
   Gen.list
@@ -246,12 +269,27 @@ genConDeclField =
   located genHsType <*>
   pure Nothing
 
+genHsKind :: Gen (GHC.HsType RdrName.RdrName)
 genHsKind = genHsType
 
-genHsType = Gen.choice [GHC.HsTyVar <$> located genName]
+genHsType :: Gen (GHC.HsType RdrName.RdrName)
+genHsType =
+  Gen.choice
+    [ GHC.HsTyVar <$> located genName
+    ]
 
+genHsTypeCtx :: Gen (GHC.HsType RdrName.RdrName)
+genHsTypeCtx =
+  Gen.choice
+    [ genHsType
+    , GHC.HsQualTy <$> located (Gen.list (Range.linear 0 3) (located genHsType)) <*>
+      located genHsType
+    ]
+
+genNewOrData :: Gen GHC.NewOrData
 genNewOrData = Gen.choice [ pure GHC.NewType, pure GHC.DataType ]
 
+genBind :: Gen (GHC.HsBindLR RdrName.RdrName RdrName.RdrName)
 genBind =
   Gen.choice
     [ GHC.VarBind <$> genName <*> located genExpr <*> Gen.bool
@@ -333,6 +371,7 @@ genBinds =
            , GHC.HsValBinds <$> (GHC.ValBindsIn <$> pure localBinds <*> pure [])
            ])
 
+genPat :: Gen (GHC.Pat RdrName.RdrName)
 genPat =
   Gen.recursive
     Gen.choice
@@ -344,9 +383,22 @@ genPat =
         GHC.ConPatIn
           (GHC.L GHC.noSrcSpan (RdrName.mkVarUnqual . FastString.fsLit $ ":"))
           (GHC.InfixCon (GHC.L GHC.noSrcSpan l) (GHC.L GHC.noSrcSpan r))
+    , GHC.ConPatIn <$> located genTypeName <*>
+      (GHC.RecCon <$>
+       (GHC.HsRecFields <$>
+        Gen.list
+          (Range.linear 0 3)
+          (located
+             (GHC.HsRecField <$>
+              located
+                (GHC.FieldOcc <$> located genName <*> pure GHC.PlaceHolder) <*>
+              located genPat <*>
+              Gen.bool)) <*>
+        Gen.maybe (Gen.integral (Range.linear 0 2))))
     ]
 
 
+genGRHS :: Gen (GHC.GRHS RdrName.RdrName (GHC.Located (GHC.HsExpr RdrName.RdrName)))
 genGRHS =
   GHC.GRHS <$> Gen.list (Range.linear 1 2) genStmt <*> located genExpr
 
@@ -405,7 +457,7 @@ genExpr =
     , Gen.subterm genExpr (GHC.HsPar . GHC.L GHC.noSrcSpan)
     , Gen.subtermM genExpr $ \e ->
         GHC.HsCase <$> located (pure e) <*>
-        genMG (Range.singleton 1) (Range.singleton 1) (Range.linear 0 2) genExpr
+        genMG (Range.linear 1 3) (Range.singleton 1) (Range.linear 0 2) genExpr
     , Gen.subterm3 genExpr genExpr genExpr $ \a b c ->
         GHC.HsIf
           Nothing
@@ -426,10 +478,30 @@ genExpr =
     , GHC.ExplicitTuple <$>
       Gen.list (Range.linear 1 10) (located (GHC.Present <$> located genExpr)) <*>
       pure undefined
-    , GHC.ExplicitList GHC.PlaceHolder Nothing <$>
+    , GHC.ExplicitList <$> pure GHC.PlaceHolder <*> pure Nothing <*>
       Gen.list (Range.linear 1 10) (located genExpr)
+    -- , Gen.subtermM genExpr $ \expr ->
+    --     GHC.HsSpliceE <$> (GHC.HsTypedSplice <$> genName <*> located (pure expr))
+    -- , Gen.subtermM genExpr $ \expr ->
+    --     GHC.RecordCon <$> located genName <*> pure GHC.PlaceHolder <*>
+    --     _ <*>
+    --     (GHC.HsRecFields <$>
+    --      Gen.list
+    --        (Range.linear 0 3)
+    --        (located
+    --           (GHC.HsRecField <$> located _ <*> located genExpr <*> pure False)) <*>
+    --      (Gen.maybe (Gen.integral (Range.linear 0 10))))
+    -- , GHC.ExplicitList GHC.PlaceHolder Nothing <$>
+    --   Gen.list (Range.linear 1 10) (located genExpr)
+    -- , Gen.subterm genExpr $ \expr -> GHC.NegApp (GHC.L GHC.noSrcSpan expr) undefined
     ]
 
+genMG
+  :: Range Int
+  -> Range Int
+  -> Range Int
+  -> Gen a
+  -> Gen (GHC.MatchGroup RdrName.RdrName (GHC.Located a))
 genMG matches patterns guards genExpr =
   GHC.MG <$>
   located
@@ -451,8 +523,10 @@ genMG matches patterns guards genExpr =
 located :: Monad m => m a -> m (GHC.Located a)
 located = fmap (GHC.L srcSpan)
 
+srcSpan :: GHC.SrcSpan
 srcSpan = GHC.noSrcSpan
 
+genImportDecl :: Gen (GHC.ImportDecl RdrName.RdrName)
 genImportDecl = do
   ideclSourceSrc <- pure Nothing
   ideclName <- located genModuleName
@@ -468,7 +542,7 @@ genImportDecl = do
   ideclAs <- Gen.maybe genModuleName
   pure GHC.ImportDecl {..}
 
--- genIE :: (Monad m, GenName name) => Gen m (GHC.IE name)
+genIE :: Gen (GHC.IE RdrName.RdrName)
 genIE =
   Gen.choice
     [ GHC.IEVar <$> located genName
@@ -476,20 +550,24 @@ genIE =
     , GHC.IEThingAll <$> located genTypeName
     ]
 
--- genModuleName :: Monad m => Gen m GHC.ModuleName
+genModuleName :: Gen GHC.ModuleName
 genModuleName =
   fmap GHC.mkModuleName $
   (:) <$> Gen.upper <*> Gen.string (Range.linear 0 10) Gen.alphaNum
 
-genTypeName =
-    fmap (RdrName.mkVarUnqual . FastString.fsLit) $
-    ((:) <$> Gen.upper <*> Gen.string (Range.linear 0 10) Gen.alphaNum)
+typeName :: Gen [Char]
+typeName = (:) <$> Gen.upper <*> Gen.string (Range.linear 0 10) Gen.alphaNum
+
+genTypeName :: Gen RdrName.RdrName
+genTypeName = fmap (RdrName.mkVarUnqual . FastString.fsLit) typeName
 
 class GenName a where
   genName :: Gen a
 
 instance GenName GHC.RdrName where
   genName =
-    fmap (RdrName.mkVarUnqual . FastString.fsLit) $
-    Gen.filter (\name -> not (name `elem` ["do", "if", "of", "in", "let"])) $
-    ((:) <$> Gen.lower <*> Gen.string (Range.linear 0 10) Gen.alphaNum)
+    Gen.choice
+      [ fmap (RdrName.mkVarUnqual . FastString.fsLit) $
+        Gen.filter (\name -> not (name `elem` ["do", "if", "of", "in", "let"])) $
+        ((:) <$> Gen.lower <*> Gen.string (Range.linear 0 10) Gen.alphaNum)
+      ]
