@@ -334,21 +334,18 @@ genBinds =
            ])
 
 genPat =
-  Gen.choice
-    [ pure $ GHC.WildPat GHC.PlaceHolder
-    , GHC.VarPat <$> located genName
-    , do details <- genConPatDetails
-         GHC.ConPatIn <$>
-           located
-             (case details of
-                GHC.InfixCon {} ->
-                  pure . RdrName.mkVarUnqual . FastString.fsLit $ ":"
-                _ -> genName) <*>
-           pure details
+  Gen.recursive
+    Gen.choice
+    [pure $ GHC.WildPat GHC.PlaceHolder, GHC.VarPat <$> located genName]
+    [ GHC.ListPat <$> Gen.list (Range.linear 1 10) (located genPat) <*>
+      pure GHC.PlaceHolder <*>
+      pure Nothing
+    , Gen.subterm2 genPat genPat $ \l r ->
+        GHC.ConPatIn
+          (GHC.L GHC.noSrcSpan (RdrName.mkVarUnqual . FastString.fsLit $ ":"))
+          (GHC.InfixCon (GHC.L GHC.noSrcSpan l) (GHC.L GHC.noSrcSpan r))
     ]
 
-genConPatDetails =
-  Gen.choice [GHC.InfixCon <$> located genPat <*> located genPat]
 
 genGRHS =
   GHC.GRHS <$> Gen.list (Range.linear 1 2) genStmt <*> located genExpr

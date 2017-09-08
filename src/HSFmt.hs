@@ -317,6 +317,7 @@ instance Pretty (Pat RdrName) where
   pretty (ConPatIn id_ (InfixCon a b)) = pretty a <+> pretty id_ <+> pretty b
   pretty (ConPatIn id_ details) = pretty id_ <+> pretty details
   pretty (LitPat a) = pretty a
+  pretty (ListPat pats _ _) = brackets (hsep $ punctuate comma $ map pretty pats)
 
 instance Pretty (HsConPatDetails RdrName) where
   pretty (PrefixCon args) = hsep (map pretty args)
