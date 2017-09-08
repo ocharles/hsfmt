@@ -108,7 +108,10 @@ instance Pretty (TyClDecl RdrName) where
     indent
       2
       (concatWith (\x y -> x <> hardline <> hardline <> y) $
-       map (prettyBind equals . unLoc) (toList tcdMeths))
+       map (prettyBind equals . unLoc) (toList tcdMeths) ++ map pretty tcdSigs)
+
+instance Pretty (LSig RdrName) where
+  pretty (L _loc a) = pretty a
 
 instance Pretty (Located [LHsSigType RdrName]) where
   pretty (L _loc a) = pretty a
@@ -348,6 +351,14 @@ instance Pretty (LHsSigType RdrName) where
 instance Pretty (Sig RdrName) where
   pretty (TypeSig names sig) =
     hsep (punctuate comma (map pretty names)) <+> "::" <+> pretty sig
+  pretty PatSynSig{} = "PatSynSig"
+  pretty (ClassOpSig a b c) = hsep (punctuate comma (map pretty b)) <+> "::" <+> pretty c
+  pretty IdSig{} = "IdSig"
+  pretty FixSig{} = "FixSig"
+  pretty InlineSig{} = "InlineSig"
+  pretty SpecSig{} = "SpecSig"
+  pretty SpecInstSig{} = "SpecInstSig"
+  pretty MinimalSig{} = "MinimalSig"
 
 instance Pretty (LHsSigWcType RdrName) where
   pretty HsIB {hsib_body} = pretty hsib_body

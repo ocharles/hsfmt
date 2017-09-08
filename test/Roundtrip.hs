@@ -192,7 +192,7 @@ genTyClDecl = Gen.choice [dataDecl, synDecl, classDecl]
     classDecl =
       GHC.ClassDecl <$> located (pure []) <*> located genTypeName <*> genLHsQTyVars <*>
       pure [] <*>
-      pure [] <*>
+      Gen.list (Range.linear 0 10) (located genSig) <*>
       genBinds <*>
       pure [] <*>
       pure [] <*>
