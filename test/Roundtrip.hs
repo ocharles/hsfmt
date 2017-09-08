@@ -469,7 +469,8 @@ genImportDecl = do
   pure GHC.ImportDecl {..}
 
 -- genIE :: (Monad m, GenName name) => Gen m (GHC.IE name)
-genIE = Gen.choice [ GHC.IEVar <$> located genName ]
+genIE =
+  Gen.choice [GHC.IEVar <$> located genName, GHC.IEThingAbs <$> located genName]
 
 -- genModuleName :: Monad m => Gen m GHC.ModuleName
 genModuleName =
