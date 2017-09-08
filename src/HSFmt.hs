@@ -97,6 +97,9 @@ instance Pretty (TyClDecl RdrName) where
           NewType -> "newtype"
           DataType -> "data") <+>
        pretty tcdLName <>
+       (case hsq_explicit tcdTyVars of
+          [] -> mempty
+          vars -> space <> hsep (map pretty vars)) <>
        (case dd_cons of
           [] -> mempty
           cons -> space <> equals <+> pretty dd_cons) <>
@@ -109,6 +112,12 @@ instance Pretty (TyClDecl RdrName) where
       2
       (concatWith (\x y -> x <> hardline <> hardline <> y) $
        map (prettyBind equals . unLoc) (toList tcdMeths) ++ map pretty tcdSigs)
+
+instance Pretty (LHsTyVarBndr RdrName) where
+  pretty (L _loc a) = pretty a
+
+instance Pretty (HsTyVarBndr RdrName) where
+  pretty (UserTyVar n) = pretty n
 
 instance Pretty (LSig RdrName) where
   pretty (L _loc a) = pretty a
