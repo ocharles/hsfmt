@@ -95,13 +95,20 @@ instance Pretty (TyClDecl RdrName) where
     in nest 2 $
        (case dd_ND of
           NewType -> "newtype"
-          DataType -> "data") <+> pretty tcdLName <>
+          DataType -> "data") <+>
+       pretty tcdLName <>
        (case dd_cons of
           [] -> mempty
           cons -> space <> equals <+> pretty dd_cons) <>
        foldMap (\a -> space <> "deriving" <+> pretty a) dd_derivs
-
-  pretty ClassDecl {} = "Classdecl"
+  pretty ClassDecl {..} =
+    "class" <+>
+    pretty tcdLName <+>
+    "where" <> hardline <>
+    indent
+      2
+      (concatWith (\x y -> x <> hardline <> hardline <> y) $
+       map (prettyBind equals . unLoc) (toList tcdMeths))
 
 instance Pretty (Located [LHsSigType RdrName]) where
   pretty (L _loc a) = pretty a
