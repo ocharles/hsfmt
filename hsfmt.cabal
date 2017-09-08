@@ -14,10 +14,38 @@ maintainer:          ollie@ocharles.org.uk
 category:            Development
 build-type:          Simple
 extra-source-files:  ChangeLog.md
-cabal-version:       >=1.10
+cabal-version:       >=1.18
 
-executable hsfmt
-  main-is:             HSFmt.hs
-  default-extensions:  RecordWildCards, NamedFieldPuns, OverloadedStrings, FlexibleContexts, UndecidableInstances
-  build-depends:       base >=4.9 && <4.10, text >=1.2 && <1.3, ghc-exactprint >=0.5 && <0.6, wl-pprint-text >=1.1 && <1.2, transformers >=0.5 && <0.6, ghc, mtl, containers
+library
+  default-extensions:  RecordWildCards
+                     , NamedFieldPuns
+                     , OverloadedStrings
+                     , FlexibleContexts
+                     , UndecidableInstances
+  build-depends:       base >=4.9 && <4.10
+                     , text >=1.2 && <1.3
+                     , ghc-exactprint >=0.5 && <0.6
+                     , prettyprinter
+                     , transformers >=0.5 && <0.6
+                     , ghc
+                     , mtl
+                     , containers
+                     , ghc-paths
+                     , hedgehog
   default-language:    Haskell2010
+  hs-source-dirs:      src
+  exposed-modules:     HSFmt
+
+test-suite properties
+  type:                exitcode-stdio-1.0
+  build-depends:       base
+                     , hedgehog
+                     , ghc
+                     , ghc-exactprint
+                     , hsfmt
+                     , prettyprinter
+  main-is:             Roundtrip.hs
+  hs-source-dirs:      test
+  default-language:    Haskell2010
+  other-extensions:    TemplateHaskell
+  ghc-options:         -threaded

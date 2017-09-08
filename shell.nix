@@ -5,7 +5,7 @@ let
   inherit (nixpkgs) pkgs;
 
   f = { mkDerivation, base, ghc-exactprint, stdenv, text
-      , transformers, wl-pprint-text, mtl
+      , transformers, prettyprinter, mtl, hedgehog
       }:
       mkDerivation {
         pname = "hsfmt";
@@ -14,7 +14,8 @@ let
         isLibrary = false;
         isExecutable = true;
         executableHaskellDepends = [
-          base ghc-exactprint mtl text transformers wl-pprint-text
+          base ghc-exactprint mtl text transformers prettyprinter
+          hedgehog
         ];
         homepage = "https://github.com/ocharles/hsfmt";
         description = "A Haskell source code formatter";
@@ -23,14 +24,6 @@ let
 
   haskellPackages = pkgs.haskellPackages.override {
     overrides = self: super: {
-      wl-pprint-text = pkgs.haskell.lib.overrideCabal super.wl-pprint-text (drv: {
-        src = pkgs.fetchgit {
-          url = git://github.com/ocharles/wl-pprint-text;
-          sha256 = "04dz1m1pvhizzi92p45kzns15isa1xs8gv7vazmnf36vl2bwgclj";
-          rev = "e781145ac9546991a9b482d3f3fb1169ad93927a";
-        };
-        buildDepends = [ super.base-compat ];
-      });
     };
   };
 
