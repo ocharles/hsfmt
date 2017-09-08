@@ -22,16 +22,17 @@ library
                      , OverloadedStrings
                      , FlexibleContexts
                      , UndecidableInstances
-  build-depends:       base >=4.9 && <4.10
-                     , text >=1.2 && <1.3
-                     , ghc-exactprint >=0.5 && <0.6
-                     , prettyprinter
-                     , transformers >=0.5 && <0.6
-                     , ghc
-                     , mtl
+  build-depends:       Diff >= 0.3.4
+                     , base >=4.9 && <4.10
                      , containers
+                     , ghc
+                     , ghc-exactprint >=0.5 && <0.6
                      , ghc-paths
                      , hedgehog
+                     , mtl
+                     , prettyprinter
+                     , text >=1.2 && <1.3
+                     , transformers >=0.5 && <0.6
   default-language:    Haskell2010
   hs-source-dirs:      src
   exposed-modules:     HSFmt
@@ -44,6 +45,7 @@ test-suite properties
                      , ghc-exactprint
                      , hsfmt
                      , prettyprinter
+                     , Diff
   main-is:             Roundtrip.hs
   hs-source-dirs:      test
   default-language:    Haskell2010

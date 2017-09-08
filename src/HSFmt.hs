@@ -166,7 +166,7 @@ instance Pretty (Located (StmtLR RdrName RdrName (LHsExpr RdrName))) where
 
 instance Pretty (StmtLR RdrName RdrName (LHsExpr RdrName)) where
   pretty (BindStmt p bod _ _ _) =
-    align $ pretty p <+> "<-" <> hardline <> indent 2 (pretty bod)
+    align $ parPat (unLoc p) <+> "<-" <> hardline <> indent 2 (pretty bod)
   pretty (BodyStmt body _ _ _) = pretty body
   pretty (LetStmt binds) = "let" <> hardline <+> indent 2 (prettyHsLocalBinds equals (unLoc binds))
 
@@ -305,26 +305,29 @@ instance Pretty (HsTupArg RdrName) where
 instance Pretty HsLit where
   pretty (HsString src _) = pretty src
 
+parPat a@(ConPatIn _ InfixCon{}) = parens (pretty a)
+parPat a = pretty a
+
 instance Pretty (Pat RdrName) where
   pretty WildPat{} = "_"
   pretty (VarPat name) = pretty name
   pretty (AsPat id_ pat) = pretty id_ <> "@" <> pretty pat
   pretty (ParPat p) = parens ( pretty p )
   pretty (TuplePat pats _ _) = tupled (map pretty pats)
+  pretty (ConPatIn id_ (InfixCon a b)) = pretty a <+> pretty id_ <+> pretty b
   pretty (ConPatIn id_ details) = pretty id_ <+> pretty details
   pretty (LitPat a) = pretty a
 
 instance Pretty (HsConPatDetails RdrName) where
   pretty (PrefixCon args) = hsep (map pretty args)
   pretty (RecCon rec_) = pretty rec_
-  pretty (InfixCon a b) = pretty a <+> pretty b
+  pretty (InfixCon a b) = parens $ pretty a <+> pretty b
 
 instance Pretty (HsRecFields RdrName (LPat RdrName)) where
   pretty HsRecFields {rec_flds, rec_dotdot} =
     braces $
     hsep $
     punctuate comma $ maybe [] (const [".."]) rec_dotdot
-
 
 instance Pretty (Located (Pat RdrName)) where
   pretty (L _loc a) = pretty a
@@ -470,15 +473,18 @@ prettyBind bind hsBind =
         (\alt -> pretty fun_id <+> prettyMatch bind (unLoc alt))
         (unLoc $ mg_alts fun_matches)
     PatBind {pat_lhs, pat_rhs} ->
-      align $ pretty pat_lhs <+> prettyGRHSs bind pat_rhs
-    VarBind {var_id, var_rhs} -> pretty var_id <+> space <> bind <> hardline <> indent 2 (pretty var_rhs)
+      align $ parPat (unLoc pat_lhs) <+> prettyGRHSs bind pat_rhs
+    VarBind {var_id, var_rhs} -> pretty var_id <+> bind <> hardline <> indent 2 (pretty var_rhs)
     AbsBinds {} -> "AbsBinds"
     AbsBindsSig {} -> "AbsBindsSig"
     PatSynBind {} -> "PatSynBind"
 
 prettyMatch :: Doc ann -> Match RdrName (LHsExpr RdrName) -> Doc ann
 prettyMatch bind Match {m_pats, m_grhss} =
-  hsep (map pretty m_pats) <+> prettyGRHSs bind m_grhss
+  (case m_pats of
+     [] -> mempty
+     _ -> hsep (map (parPat . unLoc) m_pats) <> space) <>
+  prettyGRHSs bind m_grhss
 
 
 prettyGRHSs bind GRHSs {grhssGRHSs, grhssLocalBinds} =

@@ -6,6 +6,8 @@
 {-# LANGUAGE TemplateHaskell #-}
 module Main where
 
+import Data.Algorithm.Diff
+import Data.Algorithm.DiffOutput
 import qualified Bag
 import qualified BasicTypes
 import Control.Monad.IO.Class
@@ -29,13 +31,19 @@ main = do
   return ()
 
 prop_moduleRoundtrip :: Property
-prop_moduleRoundtrip = property $ do
-  ShowModule mod <- forAll (fmap ShowModule genModule)
-  parse <- liftIO (parseModuleFromString "input.hs" (show (pretty mod)))
-  case parse of
-    Left e -> fail (show e)
-    Right (_, parsed) -> do
-      show (pretty mod) === show (pretty parsed)
+prop_moduleRoundtrip =
+  property $ do
+    ShowModule mod <- forAll (fmap ShowModule genModule)
+    parse <- liftIO (parseModuleFromString "input.hs" (show (pretty mod)))
+    case parse of
+      Left e -> fail (show e)
+      Right (_, parsed) -> do
+        footnote
+          (ppDiff $
+           getGroupedDiff
+             (lines $ show (pretty mod))
+             (lines $ show (pretty parsed)))
+        assert $ show (pretty mod) == show (pretty parsed)
 
 newtype ShowModule =
   ShowModule (GHC.HsModule GHC.RdrName)
@@ -327,7 +335,22 @@ genBinds =
            , GHC.HsValBinds <$> (GHC.ValBindsIn <$> pure localBinds <*> pure [])
            ])
 
-genPat = Gen.choice [ pure $ GHC.WildPat GHC.PlaceHolder ]
+genPat =
+  Gen.choice
+    [ pure $ GHC.WildPat GHC.PlaceHolder
+    , GHC.VarPat <$> located genName
+    , do details <- genConPatDetails
+         GHC.ConPatIn <$>
+           located
+             (case details of
+                GHC.InfixCon {} ->
+                  pure . RdrName.mkVarUnqual . FastString.fsLit $ ":"
+                _ -> genName) <*>
+           pure details
+    ]
+
+genConPatDetails =
+  Gen.choice [GHC.InfixCon <$> located genPat <*> located genPat]
 
 genGRHS = GHC.GRHS <$> pure [] <*> located genExpr
 
