@@ -19,7 +19,7 @@ import RdrName
 
 
 
-groupDecls :: ( Eq id ) => [LHsDecl id] -> [[LHsDecl id]]
+groupDecls :: ( (Eq id) ) => [LHsDecl id] -> [[LHsDecl id]]
 groupDecls []  =
   []
 groupDecls (x@(L _ (SigD (TypeSig names _))) : xs) =
@@ -33,8 +33,8 @@ groupDecls (x : xs) =
   [x] : groupDecls xs
 
 
-splitNames :: ( Eq id ) => [id] -> [LHsDecl id] -> ( [LHsDecl id]
-                                                   , [LHsDecl id] )
+splitNames :: ( (Eq id) ) => [id] -> [LHsDecl id] -> ( [LHsDecl id]
+                                                     , [LHsDecl id] )
 splitNames names []  =
   ([], [])
 splitNames names (x : xs) =
@@ -295,7 +295,7 @@ instance Pretty (HsExpr RdrName) where
   pretty (HsApp a b) =
     parensExpr (unLoc a) <+> parensExpr (unLoc b)
   pretty (OpApp (L _ a) (L _ (HsVar op)) _ (L _ b))
-    | HSFmt.isSymOcc op = parensExpr a <+> pretty op <+> parensExpr b
+    | HSFmt.isSymOcc op = parensExpr a <+> prettyName (unLoc op) <+> parensExpr b
     | otherwise = parensExpr a <+> "`" <> pretty op <> "`" <+> parensExpr b
   pretty (OpApp a other _ b) =
     error "OpApp with a non-HsVar operator"
@@ -347,7 +347,7 @@ instance Pretty (HsSplice RdrName) where
   pretty (HsUntypedSplice id_ expr) =
     pretty expr
   pretty (HsQuasiQuote a b _ src) =
-    brackets (pretty b <> "|" <> column (\n ->
+    brackets (prettyInfixName b <> "|" <> column (\n ->
       indent (negate n) (pretty src)) <> "|")
   pretty (HsTypedSplice x expr) =
     "$$" <> parens (pretty expr)
@@ -391,7 +391,7 @@ instance Pretty (Pat RdrName) where
   pretty (TuplePat pats _ _) =
     tupled (map pretty pats)
   pretty (ConPatIn id_ (InfixCon a b)) =
-    pretty a <+> pretty id_ <+> pretty b
+    pretty a <+> prettyName (unLoc id_) <+> pretty b
   pretty (ConPatIn id_ details) =
     pretty id_ <+> pretty details
   pretty (LitPat a) =
@@ -566,18 +566,29 @@ instance Pretty (IE RdrName) where
 
 instance Pretty (Located RdrName) where
   pretty (L _loc rdrName) =
-    pretty rdrName
+    prettyInfixName rdrName
 
 
-instance Pretty RdrName where
-  pretty (Unqual occName) =
-    pretty occName
-  pretty (Qual mod name) =
-    pretty mod <> dot <> pretty name
-  pretty (Orig mod name) =
-    pretty mod <> dot <> pretty name
-  pretty (Exact name) =
-    pretty (GHC.nameOccName name)
+prettyName :: RdrName -> Doc ann
+prettyName n =
+  case n of
+    Unqual occName ->
+      pretty occName
+
+    Qual mod name ->
+      pretty mod <> dot <> pretty name
+
+    Orig mod name ->
+      pretty mod <> dot <> pretty name
+
+    Exact name ->
+      pretty (GHC.nameOccName name)
+
+
+prettyInfixName :: RdrName -> Doc ann
+prettyInfixName n
+  | HSFmt.isSymOcc n = lparen <> prettyName n <> rparen
+  | otherwise = prettyName n
 
 
 instance Pretty Module where
@@ -604,7 +615,7 @@ instance IsSymOcc RdrName where
     HSFmt.isSymOcc . rdrNameOcc
 
 
-instance ( IsSymOcc b ) => IsSymOcc (GenLocated a b) where
+instance ( (IsSymOcc b) ) => IsSymOcc (GenLocated a b) where
   isSymOcc =
     HSFmt.isSymOcc . unLoc
 
@@ -626,7 +637,7 @@ prettyBind bind hsBind =
       align $ parPat (unLoc pat_lhs) <+> prettyGRHSs bind pat_rhs
 
     VarBind {var_id, var_rhs} ->
-      pretty var_id <+> bind <> hardline <> indent 2 (pretty var_rhs)
+      prettyInfixName var_id <+> bind <> hardline <> indent 2 (pretty var_rhs)
 
 
 prettyMatch :: Doc ann -> Match RdrName (LHsExpr RdrName) -> Doc ann
