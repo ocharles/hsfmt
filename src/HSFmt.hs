@@ -323,7 +323,17 @@ instance Pretty (HsRecFields RdrName (LPat RdrName)) where
   pretty HsRecFields {rec_flds, rec_dotdot} =
     braces $
     hsep $
-    punctuate comma $ maybe [] (const [".."]) rec_dotdot
+    punctuate comma $ map pretty rec_flds ++ maybe [] (const [".."]) rec_dotdot
+
+instance Pretty (Located (HsRecField RdrName (LPat RdrName))) where
+  pretty (L _loc a) = pretty a
+
+instance Pretty (HsRecField RdrName (LPat RdrName)) where
+  pretty HsRecField {..} =
+    pretty hsRecFieldLbl <>
+    if hsRecPun
+      then mempty
+      else space <> equals <+> pretty hsRecFieldArg
 
 instance Pretty (Located (Pat RdrName)) where
   pretty (L _loc a) = pretty a
