@@ -106,9 +106,6 @@ instance Pretty (TyClDecl RdrName) where
 instance Pretty (Located [LHsSigType RdrName]) where
   pretty (L _loc a) = pretty a
 
-instance Pretty (HsDataDefn RdrName) where
-  pretty HsDataDefn {dd_cons} = pretty dd_cons
-
 instance Pretty (Located (ConDecl RdrName)) where
   pretty (L _loc a) = pretty a
 
@@ -121,9 +118,6 @@ instance Pretty (ConDecl RdrName) where
       RecCon xs -> align (braces (pretty xs))
       PrefixCon args -> hsep (map pretty args)
 
-instance Pretty (HsConDeclDetails RdrName) where
-  pretty (RecCon rec_) = braces (pretty rec_)
-  pretty (PrefixCon tys) = pretty tys
 
 instance Pretty (Located [LConDeclField RdrName]) where
   pretty (L _loc a) = pretty a
