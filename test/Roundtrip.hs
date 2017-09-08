@@ -170,8 +170,6 @@ genHsImplicitBndrs = GHC.HsIB <$> pure GHC.PlaceHolder <*> located genHsType
 -- genLHsBinds =
 --   Bag.listToBag <$> genBinds
 
--- genHsBindLR = genBind
-
 -- genLSig = located genSig
 
 genSig =
@@ -281,7 +279,7 @@ genBind =
 
   where
     grhsss =
-      GHC.GRHSs <$> Gen.list (Range.singleton 1) (located genGRHS) <*>
+      GHC.GRHSs <$> Gen.list (Range.linear 1 3) (located genGRHS) <*>
       located
         (Gen.choice
            [ pure GHC.EmptyLocalBinds
@@ -352,7 +350,8 @@ genPat =
 genConPatDetails =
   Gen.choice [GHC.InfixCon <$> located genPat <*> located genPat]
 
-genGRHS = GHC.GRHS <$> pure [] <*> located genExpr
+genGRHS =
+  GHC.GRHS <$> Gen.list (Range.linear 1 2) genStmt <*> located genExpr
 
 genStmt :: Gen (GHC.ExprLStmt RdrName.RdrName)
 genStmt =
@@ -388,7 +387,12 @@ genExpr =
         ]
     ]
     [ Gen.subtermM genExpr $ \expr ->
-        GHC.HsLam <$> genMG (Range.singleton 1) (Range.singleton 1) (pure expr)
+        GHC.HsLam <$>
+        genMG
+          (Range.singleton 1)
+          (Range.linear 1 3)
+          (Range.singleton 0)
+          (pure expr)
     , Gen.subterm2
         genExpr
         genExpr
@@ -404,7 +408,7 @@ genExpr =
     , Gen.subterm genExpr (GHC.HsPar . GHC.L GHC.noSrcSpan)
     , Gen.subtermM genExpr $ \e ->
         GHC.HsCase <$> located (pure e) <*>
-        genMG (Range.singleton 1) (Range.singleton 1) genExpr
+        genMG (Range.singleton 1) (Range.singleton 1) (Range.linear 0 2) genExpr
     , Gen.subterm3 genExpr genExpr genExpr $ \a b c ->
         GHC.HsIf
           Nothing
@@ -429,17 +433,19 @@ genExpr =
       Gen.list (Range.linear 1 10) (located genExpr)
     ]
 
-genMG range patterns genExpr =
+genMG matches patterns guards genExpr =
   GHC.MG <$>
   located
     (Gen.list
-       range
+       matches
        (located
-          (GHC.Match <$> pure undefined <*>
-           Gen.list patterns (located genPat) <*>
+          (GHC.Match <$> pure undefined <*> Gen.list patterns (located genPat) <*>
            pure Nothing <*>
            (GHC.GRHSs <$>
-            (pure <$> located (GHC.GRHS <$> pure [] <*> located genExpr)) <*>
+            (pure <$>
+             located
+               (GHC.GRHS <$> Gen.list guards genStmt <*>
+                located genExpr)) <*>
             located (pure GHC.EmptyLocalBinds))))) <*>
   pure [] <*>
   pure GHC.PlaceHolder <*>

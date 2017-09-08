@@ -488,7 +488,9 @@ prettyMatch bind Match {m_pats, m_grhss} =
 
 
 prettyGRHSs bind GRHSs {grhssGRHSs, grhssLocalBinds} =
-  vsep (map (prettyGRHS bind . unLoc) grhssGRHSs) <>
+  (case grhssGRHSs of
+     [grhs] -> prettyGRHS bind (unLoc grhs)
+     _ -> hardline <> indent 2 (vsep (map (prettyGRHS bind . unLoc) grhssGRHSs))) <>
   case unLoc grhssLocalBinds of
     EmptyLocalBinds -> mempty
     _ ->
