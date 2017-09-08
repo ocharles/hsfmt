@@ -19,7 +19,7 @@ import RdrName
 
 
 
-groupDecls :: ( (Eq id) ) => [LHsDecl id] -> [[LHsDecl id]]
+groupDecls :: ( ((Eq id)) ) => [LHsDecl id] -> [[LHsDecl id]]
 groupDecls []  =
   []
 groupDecls (x@(L _ (SigD (TypeSig names _))) : xs) =
@@ -33,8 +33,8 @@ groupDecls (x : xs) =
   [x] : groupDecls xs
 
 
-splitNames :: ( (Eq id) ) => [id] -> [LHsDecl id] -> ( [LHsDecl id]
-                                                     , [LHsDecl id] )
+splitNames :: ( ((Eq id)) ) => [id] -> [LHsDecl id] -> ( [LHsDecl id]
+                                                       , [LHsDecl id] )
 splitNames names []  =
   ([], [])
 splitNames names (x : xs) =
@@ -189,7 +189,22 @@ instance Pretty (ConDecl RdrName) where
                              align (braces (pretty xs))
 
                            PrefixCon args ->
-                             hsep (map pretty args))
+                             hsep (map (parTy . unLoc) args))
+
+    where
+
+      parTy t@HsForAllTy {} =
+        parens (pretty t)
+      parTy t@HsQualTy {} =
+        parens (pretty t)
+      parTy t@HsAppsTy {} =
+        parens (pretty t)
+      parTy t@HsAppTy {} =
+        parens (pretty t)
+      parTy t@HsFunTy {} =
+        parens (pretty t)
+      parTy t =
+        pretty t
 
 
 instance Pretty (Located [LConDeclField RdrName]) where
@@ -615,7 +630,7 @@ instance IsSymOcc RdrName where
     HSFmt.isSymOcc . rdrNameOcc
 
 
-instance ( (IsSymOcc b) ) => IsSymOcc (GenLocated a b) where
+instance ( ((IsSymOcc b)) ) => IsSymOcc (GenLocated a b) where
   isSymOcc =
     HSFmt.isSymOcc . unLoc
 

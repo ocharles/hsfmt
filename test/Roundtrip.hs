@@ -33,6 +33,7 @@ main = do
 
 prop_moduleRoundtrip :: Property
 prop_moduleRoundtrip =
+  withTests 1000 $
   property $ do
     ShowModule mod <- forAll (fmap ShowModule genModule)
     parse <- liftIO (parseModuleFromString "input.hs" (show (pretty mod)))
@@ -274,8 +275,18 @@ genHsKind = genHsType
 
 genHsType :: Gen (GHC.HsType RdrName.RdrName)
 genHsType =
-  Gen.choice
-    [ GHC.HsTyVar <$> located genTyVar
+  Gen.recursive
+    Gen.choice
+    [GHC.HsTyVar <$> located genTyVar]
+    [ GHC.HsAppsTy <$>
+      Gen.list
+        (Range.linear 1 3)
+        (located (GHC.HsAppPrefix <$> located genHsType))
+    , Gen.subterm2 genHsType genHsType $ \a b ->
+        GHC.HsAppTy (GHC.L srcSpan a) (GHC.L srcSpan b)
+    , Gen.subterm2 genHsType genHsType $ \a b ->
+        GHC.HsFunTy (GHC.L srcSpan a) (GHC.L srcSpan b)
+    , Gen.subtermM genHsType $ \expr -> GHC.HsListTy <$> located (pure expr)
     ]
 
 genHsTypeCtx :: Gen (GHC.HsType RdrName.RdrName)
@@ -408,6 +419,9 @@ genStmt =
   Gen.choice
     [ GHC.BodyStmt <$> located (Gen.filter (not . isHsLet) genExpr) <*>
       pure undefined <*>
+      pure undefined <*>
+      pure GHC.PlaceHolder
+    , GHC.BindStmt <$> located genPat <*> located genExpr <*> pure undefined <*>
       pure undefined <*>
       pure GHC.PlaceHolder
     ]
