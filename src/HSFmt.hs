@@ -497,6 +497,8 @@ instance Pretty (HsType RdrName) where
     tupled (map pretty tys)
   pretty (HsParTy a) =
     parens (pretty a)
+  pretty (HsForAllTy bndrs t) =
+    "forall" <+> hsep (map pretty bndrs) <> dot <+> pretty t
 
 
 instance Pretty (Located (HsAppType RdrName)) where
