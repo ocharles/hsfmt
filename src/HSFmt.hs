@@ -260,6 +260,7 @@ instance Pretty (HsExpr RdrName) where
     brackets $ hsep $ punctuate comma $ map pretty exprs
   pretty RecordCon {rcon_con_name, rcon_flds} =
     pretty rcon_con_name <+> pretty rcon_flds
+  pretty (HsSpliceE a) = pretty a
 
 instance Pretty (HsRecordBinds RdrName) where
   pretty HsRecFields {rec_flds, rec_dotdot} =
@@ -283,6 +284,7 @@ instance Pretty (HsSplice RdrName) where
   pretty (HsQuasiQuote a b _ src) =
     brackets
       (pretty b <> "|" <> column (\n -> indent (negate n) (pretty src)) <> "|")
+  pretty (HsTypedSplice x expr) = "$$" <> parens (pretty expr)
 
 instance Pretty (Located [ExprLStmt RdrName]) where
   pretty (L _loc a) = pretty a
