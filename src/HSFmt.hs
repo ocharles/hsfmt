@@ -263,7 +263,13 @@ instance Pretty (HsExpr RdrName) where
 
 instance Pretty (HsRecordBinds RdrName) where
   pretty HsRecFields {rec_flds, rec_dotdot} =
-    braces (hsep . punctuate comma $ map pretty rec_flds)
+    braces
+      (hsep . punctuate comma $
+       map pretty rec_flds ++
+       case rec_dotdot of
+         Nothing -> []
+         Just _ -> [".."])
+
 
 instance Pretty (LHsRecField RdrName (LHsExpr RdrName)) where
   pretty (L _loc a) = pretty a
