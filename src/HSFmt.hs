@@ -460,8 +460,12 @@ instance Pretty (LHsSigType RdrName) where
 instance Pretty (Sig RdrName) where
   pretty (TypeSig names sig) =
     hsep (punctuate comma (map pretty names)) <+> "::" <+> pretty sig
-  pretty (ClassOpSig a b c) =
-    hsep (punctuate comma (map pretty b)) <+> "::" <+> pretty c
+  pretty (ClassOpSig isDefault b c) =
+    (if isDefault
+       then "default" <> space
+       else mempty) <>
+    hsep (punctuate comma (map pretty b)) <+>
+    "::" <+> pretty c
 
 
 instance Pretty (LHsSigWcType RdrName) where
