@@ -78,12 +78,17 @@ instance Pretty (HsModule RdrName) where
     concatWith (\x y ->
       x <> hardline <> hardline <> hardline <> hardline <> y) [concatWith (\x y ->
       x <> hardline <> hardline <> y) $ catMaybes [flip fmap hsmodName $ (\moduleName ->
-      hsep $ catMaybes $ [Just "module", Just $ pretty moduleName, fmap pretty hsmodExports, Just "where"]), case hsmodImports of
-                                                                                                               []  ->
-                                                                                                                 Nothing
+      hsep $ catMaybes $ [Just "module",
+      Just $ pretty moduleName,
+      fmap pretty hsmodExports,
+      Just "where"]),
+    case hsmodImports of
+      []  ->
+        Nothing
 
-                                                                                                               _ ->
-                                                                                                                 Just (pretty hsmodImports)], pretty hsmodDecls]
+      _ ->
+        Just (pretty hsmodImports)],
+    pretty hsmodDecls]
 
 
 instance Pretty (Located (HsDecl RdrName)) where
@@ -321,7 +326,7 @@ instance Pretty (HsExpr RdrName) where
   pretty (ExplicitTuple args _) =
     parens $ hsep $ punctuate comma (map pretty args)
   pretty (HsCase expr MG {mg_alts}) =
-    align $ "case" <+> pretty expr <+> "of" <> hardline <> indent 2 (concatWith (\x y ->
+    align $ "case" <+> (align (pretty expr)) <+> "of" <> hardline <> indent 2 (concatWith (\x y ->
       x <> hardline <> hardline <> y) (map (prettyMatch "->" . unLoc) (unLoc mg_alts)))
   pretty (HsIf _ a b c) =
     align $ "if" <+> pretty a <+> "then" <> hardline <> indent 2 (pretty b) <> hardline <> "else" <> hardline <> indent 2 (pretty c)
@@ -329,9 +334,9 @@ instance Pretty (HsExpr RdrName) where
     align $ "let" <> hardline <> indent 2 (prettyHsLocalBinds equals (unLoc binds)) <> hardline <> hardline <> "in" <> hardline <> indent 2 (pretty expr)
   pretty (HsDo _ exprs _) =
     align $ "do" <> hardline <> indent 2 (concatWith (\x y ->
-      x <> hardline <> hardline <> y) (map pretty (unLoc exprs)))
+      x <> hardline <> hardline <> y) (map (hang 2 . pretty) (unLoc exprs)))
   pretty (ExplicitList _ _ exprs) =
-    brackets $ hsep $ punctuate comma $ map pretty exprs
+    brackets $ sep $ punctuate comma $ map pretty exprs
   pretty RecordCon {rcon_con_name, rcon_flds} =
     pretty rcon_con_name <+> pretty rcon_flds
   pretty (HsSpliceE a) =
@@ -538,19 +543,25 @@ instance Pretty (Located (ImportDecl RdrName)) where
 
 instance Pretty (ImportDecl RdrName) where
   pretty ImportDecl {ideclName, ideclHiding, ideclQualified, ideclAs, ideclSource} =
-    hsep $ catMaybes [Just "import", if ideclSource then
-                                       Just "{-# SOURCE #-}"
-                                     else
-                                       Nothing, if ideclQualified then
-                                                  Just "qualified"
-                                                else
-                                                  Nothing, Just (pretty ideclName), flip fmap ideclAs $ (\as ->
-      "as" <+> pretty as), flip fmap ideclHiding $ (\( hiding
-                                                     , things ) ->
+    hsep $ catMaybes [Just "import",
+    if ideclSource then
+      Just "{-# SOURCE #-}"
+    else
+      Nothing,
+    if ideclQualified then
+      Just "qualified"
+    else
+      Nothing,
+    Just (pretty ideclName),
+    flip fmap ideclAs $ (\as ->
+      "as" <+> pretty as),
+    flip fmap ideclHiding $ (\( hiding
+                              , things ) ->
       hsep $ catMaybes [if hiding then
                           Just "hiding"
                         else
-                          Nothing, Just (pretty things)])]
+                          Nothing,
+      Just (pretty things)])]
 
 
 instance Pretty (Located ModuleName) where
@@ -693,7 +704,7 @@ prettyGRHSs bind GRHSs {grhssGRHSs, grhssLocalBinds} =
 prettyGRHS bind (GRHS []  body) =
   bind <> hardline <> indent 2 (pretty body)
 prettyGRHS bind (GRHS guards body) =
-  "|" <+> hsep (punctuate comma (map pretty guards)) <+> bind <+> pretty body
+  "|" <+> align (hsep (punctuate comma (map pretty guards)) <+> bind <+> pretty body)
 
 
 prettyHsLocalBinds bind (HsValBinds b) =
