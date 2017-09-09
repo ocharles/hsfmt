@@ -406,6 +406,8 @@ genPat =
               located genPat <*>
               Gen.bool)) <*>
         Gen.maybe (Gen.integral (Range.linear 0 2))))
+    , Gen.subtermM genPat $ \p ->
+        GHC.AsPat <$> located genVarName <*> located (pure p)
     ]
 
 

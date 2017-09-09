@@ -193,15 +193,15 @@ instance Pretty (ConDecl RdrName) where
 
     where
 
-      parTy t@HsForAllTy {} =
+      parTy (t@HsForAllTy {}) =
         parens (pretty t)
-      parTy t@HsQualTy {} =
+      parTy (t@HsQualTy {}) =
         parens (pretty t)
-      parTy t@HsAppsTy {} =
+      parTy (t@HsAppsTy {}) =
         parens (pretty t)
-      parTy t@HsAppTy {} =
+      parTy (t@HsAppTy {}) =
         parens (pretty t)
-      parTy t@HsFunTy {} =
+      parTy (t@HsFunTy {}) =
         parens (pretty t)
       parTy t =
         pretty t
@@ -282,17 +282,17 @@ instance Pretty OverLitVal where
     pretty st
 
 
-parensExpr expr@HsLam {} =
+parensExpr (expr@HsLam {}) =
   parens (pretty expr)
-parensExpr expr@HsCase {} =
+parensExpr (expr@HsCase {}) =
   parens (pretty expr)
-parensExpr expr@HsIf {} =
+parensExpr (expr@HsIf {}) =
   parens (pretty expr)
-parensExpr expr@HsLet {} =
+parensExpr (expr@HsLet {}) =
   parens (pretty expr)
-parensExpr expr@HsDo {} =
+parensExpr (expr@HsDo {}) =
   parens (pretty expr)
-parensExpr expr@NegApp {} =
+parensExpr (expr@NegApp {}) =
   parens (pretty expr)
 parensExpr a =
   pretty a
@@ -388,7 +388,9 @@ instance Pretty HsLit where
     pretty src
 
 
-parPat a@(ConPatIn _ InfixCon {}) =
+parPat (a@(ConPatIn _ InfixCon {})) =
+  parens (pretty a)
+parPat (a@AsPat {}) =
   parens (pretty a)
 parPat a =
   pretty a
