@@ -5,6 +5,7 @@ module HSFmt ( prettyPrintFile ) where
 
 import Data.Maybe
 import Data.Text.Prettyprint.Doc
+import Data.Text.Prettyprint.Doc.Render.String
 import Data.Foldable (toList)
 import FastString
 import GHC hiding (parseModule)
@@ -33,8 +34,7 @@ groupDecls (x : xs) =
   [x] : groupDecls xs
 
 
-splitNames :: Eq id => [id] -> [LHsDecl id] -> ( [LHsDecl id]
-                                               , [LHsDecl id] )
+splitNames :: Eq id => [id] -> [LHsDecl id] -> ([LHsDecl id], [LHsDecl id])
 splitNames names []  =
   ([], [])
 splitNames names (x : xs) =
@@ -65,7 +65,7 @@ prettyPrintFile path =
         error (show e)
 
       Right (anns, parsed) ->
-        return (show (pretty parsed))
+        return (renderString $ layoutPretty defaultLayoutOptions { layoutPageWidth = AvailablePerLine 80 1 } (pretty parsed :: Doc (  )))
 
 
 instance Pretty ParsedSource where
@@ -76,19 +76,22 @@ instance Pretty ParsedSource where
 instance Pretty (HsModule RdrName) where
   pretty HsModule {hsmodName, hsmodExports, hsmodImports, hsmodDecls} =
     concatWith (\x y ->
-      x <> hardline <> hardline <> hardline <> hardline <> y) [concatWith (\x y ->
-      x <> hardline <> hardline <> y) $ catMaybes [flip fmap hsmodName $ (\moduleName ->
-      hsep $ catMaybes $ [Just "module",
-      Just $ pretty moduleName,
-      fmap pretty hsmodExports,
-      Just "where"]),
-    case hsmodImports of
-      []  ->
-        Nothing
+      x <> hardline <> hardline <> hardline <> hardline <> y) [ concatWith (\x y ->
+                                                                x <> hardline <> hardline <> y) $ catMaybes [ flip fmap hsmodName $ (\moduleName ->
+                                                                                                              hsep $ catMaybes $ [ Just "module"
+                                                                                                                                 , Just $ pretty moduleName
+                                                                                                                                 , fmap pretty hsmodExports
+                                                                                                                                 , Just "where"
+                                                                                                                                 ])
+                                                                                                            , case hsmodImports of
+                                                                                                                []  ->
+                                                                                                                  Nothing
 
-      _ ->
-        Just (pretty hsmodImports)],
-    pretty hsmodDecls]
+                                                                                                                _ ->
+                                                                                                                  Just (pretty hsmodImports)
+                                                                                                            ]
+                                                              , pretty hsmodDecls
+                                                              ]
 
 
 instance Pretty (Located (HsDecl RdrName)) where
@@ -329,18 +332,47 @@ instance Pretty (HsExpr RdrName) where
     align $ "case" <+> (align (pretty expr)) <+> "of" <> hardline <> indent 2 (concatWith (\x y ->
       x <> hardline <> hardline <> y) (map (prettyMatch "->" . unLoc) (unLoc mg_alts)))
   pretty (HsIf _ a b c) =
-    align $ "if" <+> pretty a <+> "then" <> hardline <> indent 2 (pretty b) <> hardline <> "else" <> hardline <> indent 2 (pretty c)
+    align $ "if" <+> align (pretty a) <+> "then" <> hardline <> indent 2 (pretty b) <> hardline <> "else" <> hardline <> indent 2 (pretty c)
   pretty (HsLet binds expr) =
     align $ "let" <> hardline <> indent 2 (prettyHsLocalBinds equals (unLoc binds)) <> hardline <> hardline <> "in" <> hardline <> indent 2 (pretty expr)
   pretty (HsDo _ exprs _) =
     align $ "do" <> hardline <> indent 2 (concatWith (\x y ->
       x <> hardline <> hardline <> y) (map (hang 2 . pretty) (unLoc exprs)))
   pretty (ExplicitList _ _ exprs) =
-    brackets $ sep $ punctuate comma $ map pretty exprs
+    group $ encloseSepAligning atLeastAlign (lbracket <> flatAlt space mempty) (line' <> rbracket) (comma <> space) (map pretty exprs)
   pretty RecordCon {rcon_con_name, rcon_flds} =
     pretty rcon_con_name <+> pretty rcon_flds
   pretty (HsSpliceE a) =
     pretty a
+  pretty (ExprWithTySig a b) =
+    pretty a <+> "::" <+> pretty b
+  pretty RecordUpd {rupd_expr, rupd_flds} =
+    pretty rupd_expr <+> pretty rupd_flds
+
+
+instance Pretty (Located (HsRecUpdField RdrName)) where
+  pretty (L _loc a) =
+    pretty a
+
+  prettyList xs =
+    lbrace <+> hsep (punctuate comma (map pretty xs)) <+> rbrace
+
+
+instance Pretty (HsRecUpdField RdrName) where
+  pretty HsRecField {hsRecFieldLbl, hsRecFieldArg} =
+    pretty hsRecFieldLbl <+> equals <+> pretty hsRecFieldArg
+
+
+instance Pretty (Located (AmbiguousFieldOcc RdrName)) where
+  pretty (L _loc a) =
+    pretty a
+
+
+instance Pretty (AmbiguousFieldOcc RdrName) where
+  pretty (Unambiguous n _) =
+    pretty n
+  pretty (Ambiguous n _) =
+    pretty n
 
 
 instance Pretty (HsRecordBinds RdrName) where
@@ -433,7 +465,8 @@ instance Pretty (HsConPatDetails RdrName) where
 
 instance Pretty (HsRecFields RdrName (LPat RdrName)) where
   pretty HsRecFields {rec_flds, rec_dotdot} =
-    braces $ hsep $ punctuate comma $ map pretty rec_flds ++ maybe [] (const [".."]) rec_dotdot
+    braces $ hsep $ punctuate comma $ map pretty rec_flds ++ maybe [] (const [ ".."
+    ]) rec_dotdot
 
 
 instance Pretty (Located (HsRecField RdrName (LPat RdrName))) where
@@ -543,25 +576,26 @@ instance Pretty (Located (ImportDecl RdrName)) where
 
 instance Pretty (ImportDecl RdrName) where
   pretty ImportDecl {ideclName, ideclHiding, ideclQualified, ideclAs, ideclSource} =
-    hsep $ catMaybes [Just "import",
-    if ideclSource then
-      Just "{-# SOURCE #-}"
-    else
-      Nothing,
-    if ideclQualified then
-      Just "qualified"
-    else
-      Nothing,
-    Just (pretty ideclName),
-    flip fmap ideclAs $ (\as ->
-      "as" <+> pretty as),
-    flip fmap ideclHiding $ (\( hiding
-                              , things ) ->
-      hsep $ catMaybes [if hiding then
-                          Just "hiding"
-                        else
-                          Nothing,
-      Just (pretty things)])]
+    hsep $ catMaybes [ Just "import"
+                     , if ideclSource then
+                         Just "{-# SOURCE #-}"
+                       else
+                         Nothing
+                     , if ideclQualified then
+                         Just "qualified"
+                       else
+                         Nothing
+                     , Just (pretty ideclName)
+                     , flip fmap ideclAs $ (\as ->
+                       "as" <+> pretty as)
+                     , flip fmap ideclHiding $ (\(hiding, things) ->
+                       hsep $ catMaybes [ if hiding then
+                                            Just "hiding"
+                                          else
+                                            Nothing
+                                        , Just (pretty things)
+                                        ])
+                     ]
 
 
 instance Pretty (Located ModuleName) where
@@ -718,3 +752,22 @@ prettyHsValBindsLR bind (ValBindsIn bnds _) =
 
 prettyMatchGroup bind MG {mg_alts} =
   hardVsep $ map (prettyMatch bind . unLoc) (unLoc mg_alts)
+
+
+atLeastAlign d =
+  column (\k ->
+    nesting (\i ->
+      nest (max 0 (k - i)) d))
+
+
+encloseSepAligning :: (Doc ann -> Doc ann) -> Doc ann -> Doc ann -> Doc ann -> [Doc ann] -> Doc ann
+encloseSepAligning align' l r s ds =
+  case ds of
+    []  ->
+      l <> r
+
+    [d] ->
+      l <> d <> r
+
+    _ ->
+      align' (cat (zipWith (<>) (l : repeat s) ds) <> r)
