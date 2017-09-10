@@ -349,7 +349,7 @@ instance Pretty (HsExpr RdrName) where
   pretty (ExprWithTySig (L _ a) b) =
     parensExpr a <+> "::" <+> pretty b
   pretty RecordUpd {rupd_expr, rupd_flds} =
-    pretty rupd_expr <+> pretty rupd_flds
+    parensExpr (unLoc rupd_expr) <+> pretty rupd_flds
 
 
 instance Pretty (Located (HsRecUpdField RdrName)) where

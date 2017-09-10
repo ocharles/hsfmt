@@ -452,6 +452,8 @@ genExpr =
                              , GHC.RecordCon <$> located genTypeName <*> pure GHC.PlaceHolder <*> pure GHC.EWildPat <*> (GHC.HsRecFields <$> Gen.list (Range.linear 1 3) (located (GHC.HsRecField <$> located (GHC.FieldOcc <$> located genVarName <*> pure GHC.PlaceHolder) <*> located genExpr <*> Gen.bool)) <*> Gen.maybe (Gen.integral (Range.linear 0 100)))
                              , Gen.subtermM genExpr $ (\e ->
                                GHC.ExprWithTySig <$> located (pure e) <*> (GHC.HsIB <$> pure GHC.PlaceHolder <*> (GHC.HsWC <$> pure GHC.PlaceHolder <*> pure Nothing <*> located genHsType)))
+                             , Gen.subtermM genExpr $ (\expr ->
+                               GHC.RecordUpd <$> located (pure expr) <*> Gen.list (Range.linear 1 3) (located $ GHC.HsRecField <$> located (GHC.Unambiguous <$> located genVarName <*> pure GHC.PlaceHolder) <*> located genExpr <*> Gen.bool) <*> pure GHC.PlaceHolder <*> pure GHC.PlaceHolder <*> pure GHC.PlaceHolder <*> pure GHC.PlaceHolder)
                              ]
 
 
