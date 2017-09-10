@@ -449,6 +449,7 @@ genExpr =
                              , GHC.HsDo <$> pure GHC.DoExpr <*> located (Gen.list (Range.linear 1 10) genStmt) <*> pure GHC.PlaceHolder
                              , GHC.ExplicitTuple <$> Gen.list (Range.linear 1 10) (located (GHC.Present <$> located genExpr)) <*> pure Boxed
                              , GHC.ExplicitList <$> pure GHC.PlaceHolder <*> pure Nothing <*> Gen.list (Range.linear 1 10) (located genExpr)
+                             , GHC.RecordCon <$> located genTypeName <*> pure GHC.PlaceHolder <*> pure GHC.EWildPat <*> (GHC.HsRecFields <$> Gen.list (Range.linear 1 3) (located (GHC.HsRecField <$> located (GHC.FieldOcc <$> located genVarName <*> pure GHC.PlaceHolder) <*> located genExpr <*> Gen.bool)) <*> Gen.maybe (Gen.integral (Range.linear 0 100)))
                              ]
 
 
