@@ -746,8 +746,16 @@ prettyGRHS bind (GRHS guards body) =
 
 
 prettyGuard :: GuardStmt RdrName -> Doc ann
-prettyGuard (a@(BodyStmt (L _ (ExprWithTySig {})) _ _ _)) =
-  parens (pretty a)
+prettyGuard (a@(BodyStmt (L _ e) _ _ _)) | needsParens e = parens (pretty a)
+
+  where
+
+    needsParens (ExprWithTySig {}) =
+      True
+    needsParens HsLam {} =
+      True
+    needsParens _ =
+      False
 prettyGuard a =
   pretty a
 
