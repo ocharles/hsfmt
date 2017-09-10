@@ -302,6 +302,8 @@ parensExpr (expr@HsDo {}) =
   parens (pretty expr)
 parensExpr (expr@NegApp {}) =
   parens (pretty expr)
+parensExpr (expr@ExprWithTySig {}) =
+  parens (pretty expr)
 parensExpr a =
   pretty a
 
@@ -344,8 +346,8 @@ instance Pretty (HsExpr RdrName) where
     pretty rcon_con_name <+> pretty rcon_flds
   pretty (HsSpliceE a) =
     pretty a
-  pretty (ExprWithTySig a b) =
-    pretty a <+> "::" <+> pretty b
+  pretty (ExprWithTySig (L _ a) b) =
+    parensExpr a <+> "::" <+> pretty b
   pretty RecordUpd {rupd_expr, rupd_flds} =
     pretty rupd_expr <+> pretty rupd_flds
 
@@ -740,7 +742,14 @@ prettyGRHSs bind GRHSs {grhssGRHSs, grhssLocalBinds} =
 prettyGRHS bind (GRHS []  body) =
   bind <> hardline <> indent 2 (pretty body)
 prettyGRHS bind (GRHS guards body) =
-  "|" <+> align (hsep (punctuate comma (map pretty guards)) <+> bind <+> pretty body)
+  "|" <+> align (hsep (punctuate comma (map (prettyGuard . unLoc) guards)) <+> bind <+> pretty body)
+
+
+prettyGuard :: GuardStmt RdrName -> Doc ann
+prettyGuard (a@(BodyStmt (L _ (ExprWithTySig {})) _ _ _)) =
+  parens (pretty a)
+prettyGuard a =
+  pretty a
 
 
 prettyHsLocalBinds bind (HsValBinds b) =
