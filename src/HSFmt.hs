@@ -1,7 +1,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 
-module HSFmt ( prettyPrintFile ) where
+module HSFmt (prettyPrintFile) where
 
 import Data.Maybe
 import Data.Text.Prettyprint.Doc
@@ -633,6 +633,8 @@ instance Pretty (IE RdrName) where
     pretty name
   pretty (IEThingAll name) =
     pretty name <> "(..)"
+  pretty (IEThingWith name _ names _) =
+    pretty name <> tupled (map pretty names)
 
 
 instance Pretty (Located RdrName) where
