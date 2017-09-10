@@ -403,7 +403,12 @@ genStmt :: Gen (GHC.ExprLStmt RdrName.RdrName)
 genStmt =
   Gen.choice [ genBodyStmt
              , located $ GHC.BindStmt <$> located genPat <*> located genExpr <*> pure syntaxExpr <*> pure syntaxExpr <*> pure GHC.PlaceHolder
+             , located $ GHC.LetStmt <$> located genLocalBinds
              ]
+
+
+genLocalBinds =
+  GHC.HsValBinds <$> (GHC.ValBindsIn <$> fmap Bag.listToBag (Gen.list (Range.linear 1 10) (located genBind)) <*> pure [])
 
 
 genExpr :: Gen (GHC.HsExpr RdrName.RdrName)
@@ -440,7 +445,7 @@ genExpr =
                              , Gen.subterm3 genExpr genExpr genExpr $ (\a b c ->
                                GHC.HsIf Nothing (GHC.L GHC.noSrcSpan a) (GHC.L GHC.noSrcSpan b) (GHC.L GHC.noSrcSpan c))
                              , Gen.subtermM genExpr $ (\body ->
-                               GHC.HsLet <$> located (GHC.HsValBinds <$> (GHC.ValBindsIn <$> fmap Bag.listToBag (Gen.list (Range.linear 1 10) (located genBind)) <*> pure [])) <*> located (pure body))
+                               GHC.HsLet <$> located genLocalBinds <*> located (pure body))
                              , GHC.HsDo <$> pure GHC.DoExpr <*> located (Gen.list (Range.linear 1 10) genStmt) <*> pure GHC.PlaceHolder
                              , GHC.ExplicitTuple <$> Gen.list (Range.linear 1 10) (located (GHC.Present <$> located genExpr)) <*> pure Boxed
                              , GHC.ExplicitList <$> pure GHC.PlaceHolder <*> pure Nothing <*> Gen.list (Range.linear 1 10) (located genExpr)
