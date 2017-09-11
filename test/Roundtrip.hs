@@ -46,6 +46,8 @@ prop_moduleRoundtrip =
                                  ShowModule mod <-
                                    forAll (fmap ShowModule genModule)
 
+                                 footnote (show $ ShowModule mod)
+
                                  parse <-
                                    liftIO (parseModuleFromString "input.hs" (show (pretty mod)))
 

@@ -247,7 +247,7 @@ instance Pretty (Located (ConDeclField RdrName)) where
 
 instance Pretty (ConDeclField RdrName) where
   pretty ConDeclField {cd_fld_names, cd_fld_type} =
-    pretty cd_fld_names <+> "::" <+> pretty cd_fld_type
+    pretty cd_fld_names <+> "::" <+> align (pretty cd_fld_type)
 
 
 instance Pretty (Located (FieldOcc RdrName)) where
@@ -533,12 +533,12 @@ instance Pretty (LHsSigType RdrName) where
 
 instance Pretty (Sig RdrName) where
   pretty (TypeSig names sig) =
-    hsep (punctuate comma (map pretty names)) <+> "::" <+> pretty sig
+    hsep (punctuate comma (map pretty names)) <+> "::" <+> align (pretty sig)
   pretty (ClassOpSig isDefault b c) =
     (if isDefault then
        "default" <> space
      else
-       mempty) <> hsep (punctuate comma (map pretty b)) <+> "::" <+> pretty c
+       mempty) <> hsep (punctuate comma (map pretty b)) <+> "::" <+> align (pretty c)
 
 
 instance Pretty (LHsSigWcType RdrName) where
