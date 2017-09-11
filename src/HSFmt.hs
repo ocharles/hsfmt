@@ -78,19 +78,19 @@ instance Pretty (HsModule RdrName) where
   pretty HsModule {hsmodName, hsmodExports, hsmodImports, hsmodDecls} =
     concatWith (\x y ->
       x <> hardline <> hardline <> hardline <> hardline <> y) [ concatWith (\x y ->
-                                                                x <> hardline <> hardline <> y) $ catMaybes [ flip fmap hsmodName $ (\moduleName ->
-                                                                                                              hsep $ catMaybes $ [ Just "module"
-                                                                                                                                 , Just $ pretty moduleName
-                                                                                                                                 , fmap pretty hsmodExports
-                                                                                                                                 , Just "where"
-                                                                                                                                 ])
-                                                                                                            , case hsmodImports of
-                                                                                                                []  ->
-                                                                                                                  Nothing
+                                                                  x <> hardline <> hardline <> y) $ catMaybes [ flip fmap hsmodName $ (\moduleName ->
+                                                                                                                  hsep $ catMaybes $ [ Just "module"
+                                                                                                                                     , Just $ pretty moduleName
+                                                                                                                                     , fmap pretty hsmodExports
+                                                                                                                                     , Just "where"
+                                                                                                                                     ])
+                                                                                                              , case hsmodImports of
+                                                                                                                  []  ->
+                                                                                                                    Nothing
 
-                                                                                                                _ ->
-                                                                                                                  Just (pretty hsmodImports)
-                                                                                                            ]
+                                                                                                                  _ ->
+                                                                                                                    Just (pretty hsmodImports)
+                                                                                                              ]
                                                               , pretty hsmodDecls
                                                               ]
 
@@ -346,7 +346,7 @@ instance Pretty (HsExpr RdrName) where
     align $ "do" <> hardline <> indent 2 (concatWith (\x y ->
       x <> hardline <> hardline <> y) (map (hang 2 . pretty) (unLoc exprs)))
   pretty (ExplicitList _ _ exprs) =
-    group $ encloseSepAligning atLeastAlign (lbracket <> flatAlt space mempty) (line' <> rbracket) (comma <> space) (map pretty exprs)
+    list (map (align . pretty) exprs)
   pretty RecordCon {rcon_con_name, rcon_flds} =
     pretty rcon_con_name <+> pretty rcon_flds
   pretty (HsSpliceE a) =
@@ -611,14 +611,14 @@ instance Pretty (ImportDecl RdrName) where
                          Nothing
                      , Just (pretty ideclName)
                      , flip fmap ideclAs $ (\as ->
-                       "as" <+> pretty as)
+                         "as" <+> pretty as)
                      , flip fmap ideclHiding $ (\(hiding, things) ->
-                       hsep $ catMaybes [ if hiding then
-                                            Just "hiding"
-                                          else
-                                            Nothing
-                                        , Just (pretty things)
-                                        ])
+                         hsep $ catMaybes [ if hiding then
+                                              Just "hiding"
+                                            else
+                                              Nothing
+                                          , Just (pretty things)
+                                          ])
                      ]
 
 
@@ -814,7 +814,7 @@ tupled =
 
 list :: [Doc ann] -> Doc ann
 list =
-  group . encloseSepAligning atLeastAlign (flatAlt "[ " "[") (flatAlt " ]" "]") ", "
+  group . encloseSepAligning atLeastAlign (lbracket <> flatAlt space mempty) (line' <> rbracket) (comma <> space)
 
 
 encloseSepAligning :: (Doc ann -> Doc ann) -> Doc ann -> Doc ann -> Doc ann -> [Doc ann] -> Doc ann
