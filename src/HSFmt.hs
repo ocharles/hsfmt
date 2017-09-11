@@ -145,7 +145,7 @@ instance Pretty (Located (HsSplice RdrName)) where
 
 instance Pretty (TyClDecl RdrName) where
   pretty SynDecl {tcdLName, tcdRhs} =
-    "type" <+> pretty tcdLName <+> equals <+> pretty tcdRhs
+    "type" <+> pretty tcdLName <+> equals <> hardline <> indent 2 (pretty tcdRhs)
   pretty DataDecl {..} =
     let
       HsDataDefn {..} =
