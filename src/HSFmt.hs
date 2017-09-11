@@ -353,7 +353,7 @@ instance Pretty (HsExpr RdrName) where
     parens $ hsep $ punctuate comma (map pretty args)
   pretty (HsCase expr MG {mg_alts}) =
     align $ "case" <+> (align (pretty expr)) <+> "of" <> hardline <> indent 2 (concatWith (\x y ->
-      x <> hardline <> hardline <> y) (map (prettyMatch "->" . unLoc) (unLoc mg_alts)))
+      x <> hardline <> hardline <> y) (map (prettyMatch "->" (hang 2) . unLoc) (unLoc mg_alts)))
   pretty (HsIf _ a b c) =
     align $ "if" <+> align (pretty a) <+> "then" <> hardline <> indent 2 (pretty b) <> hardline <> "else" <> hardline <> indent 2 (pretty c)
   pretty (HsLet binds expr) =
@@ -753,7 +753,7 @@ prettyBind bind hsBind =
   case hsBind of
     FunBind {fun_id, fun_matches} ->
       hardVsep $ map (\alt ->
-        pretty fun_id <+> prettyMatch bind (unLoc alt)) (unLoc $ mg_alts fun_matches)
+        pretty fun_id <+> prettyMatch bind align (unLoc alt)) (unLoc $ mg_alts fun_matches)
 
     PatBind {pat_lhs, pat_rhs} ->
       hang 2 (parPat (unLoc pat_lhs)) <+> prettyGRHSs bind pat_rhs
@@ -762,14 +762,14 @@ prettyBind bind hsBind =
       prettyInfixName var_id <+> bind <> hardline <> indent 2 (pretty var_rhs)
 
 
-prettyMatch :: Doc ann -> Match RdrName (LHsExpr RdrName) -> Doc ann
-prettyMatch bind Match {m_pats, m_grhss} =
+prettyMatch :: Doc ann -> (Doc ann -> Doc ann) -> Match RdrName (LHsExpr RdrName) -> Doc ann
+prettyMatch bind alignPatterns Match {m_pats, m_grhss} =
   (case m_pats of
      []  ->
        mempty
 
      _ ->
-       hsep (map (parPat . unLoc) m_pats) <> space) <> prettyGRHSs bind m_grhss
+       alignPatterns (hsep (map (parPat . unLoc) m_pats) <> space)) <> prettyGRHSs bind m_grhss
 
 
 prettyGRHSs bind GRHSs {grhssGRHSs, grhssLocalBinds} =
@@ -821,7 +821,7 @@ prettyHsValBindsLR bind (ValBindsIn bnds _) =
 
 
 prettyMatchGroup bind MG {mg_alts} =
-  hardVsep $ map (prettyMatch bind . unLoc) (unLoc mg_alts)
+  hardVsep $ map (prettyMatch bind align . unLoc) (unLoc mg_alts)
 
 
 atLeastAlign d =
