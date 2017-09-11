@@ -81,8 +81,12 @@ prettyPrintFile path =
         error (show e)
 
       Right (anns, parsed) ->
-        return (unlines $ map nullWhitespace $ lines $ renderString $ layoutPretty defaultLayoutOptions { layoutPageWidth = AvailablePerLine 80 1 } (pretty parsed :: Doc (
-        )))
+        return
+          (unlines $ map nullWhitespace $ lines $ renderString
+             $ layoutPretty
+                 defaultLayoutOptions { layoutPageWidth = AvailablePerLine 80
+                                                            1 }
+                 ((pretty parsed :: Doc ())))
 
 
 instance Pretty ParsedSource where
@@ -92,23 +96,32 @@ instance Pretty ParsedSource where
 
 instance Pretty (HsModule RdrName) where
   pretty HsModule {hsmodName, hsmodExports, hsmodImports, hsmodDecls} =
-    concatWith (\x y ->
-      x <> hardline <> hardline <> hardline <> hardline <> y) [ concatWith (\x y ->
-                                                                  x <> hardline <> hardline <> y) $ catMaybes [ fmap (\moduleName ->
-                                                                                                                  hsep $ catMaybes [ Just "module"
-                                                                                                                                   , Just $ pretty moduleName
-                                                                                                                                   , fmap pretty hsmodExports
-                                                                                                                                   , Just "where"
-                                                                                                                                   ]) hsmodName
-                                                                                                              , case hsmodImports of
-                                                                                                                  []  ->
-                                                                                                                    Nothing
+    concatWith
+      (\x y ->
+          x <> hardline <> hardline <> hardline <> hardline <> y)
+      [ concatWith
+          (\x y ->
+              x <> hardline <> hardline <> y)
+          $ catMaybes
+              [ fmap
+                  (\moduleName ->
+                      hsep
+                        $ catMaybes
+                            [ Just "module"
+                            , Just $ pretty moduleName
+                            , fmap pretty hsmodExports
+                            , Just "where"
+                            ])
+                  hsmodName
+              , case hsmodImports of
+                  []  ->
+                    Nothing
 
-                                                                                                                  _ ->
-                                                                                                                    Just (pretty hsmodImports)
-                                                                                                              ]
-                                                              , pretty hsmodDecls
-                                                              ]
+                  _ ->
+                    Just (pretty hsmodImports)
+              ]
+      , pretty hsmodDecls
+      ]
 
 
 instance Pretty (Located (HsDecl RdrName)) where
@@ -116,8 +129,11 @@ instance Pretty (Located (HsDecl RdrName)) where
     pretty decl
 
   prettyList =
-    concatWith (\x y ->
-      x <> hardline <> hardline <> hardline <> y) . map (hardVsep . map pretty) . groupDecls
+    concatWith
+      (\x y ->
+          x <> hardline <> hardline <> hardline <> y)
+      . map (hardVsep . map pretty)
+      . groupDecls
 
 
 instance Pretty (HsDecl RdrName) where
@@ -152,33 +168,46 @@ instance Pretty (Located (HsSplice RdrName)) where
 
 instance Pretty (TyClDecl RdrName) where
   pretty SynDecl {tcdLName, tcdRhs} =
-    "type" <+> pretty tcdLName <+> equals <> hardline <> indent 2 (pretty tcdRhs)
+    "type" <+> pretty tcdLName <+> equals <> hardline
+      <> indent 2 (pretty tcdRhs)
   pretty DataDecl {..} =
     let
       HsDataDefn {..} =
         tcdDataDefn
 
     in
-      nest 2 $ (case dd_ND of
-                  NewType  ->
-                    "newtype"
+      nest 2
+        $ (case dd_ND of
+             NewType  ->
+               "newtype"
 
-                  DataType  ->
-                    "data") <+> pretty tcdLName <> (case hsq_explicit tcdTyVars of
-                                                      []  ->
-                                                        mempty
+             DataType  ->
+               "data")
+        <+> pretty tcdLName
+        <> (case hsq_explicit tcdTyVars of
+              []  ->
+                mempty
 
-                                                      vars ->
-                                                        space <> hsep (map pretty vars)) <> (case dd_cons of
-                                                                                               []  ->
-                                                                                                 mempty
+              vars ->
+                space <> hsep (map pretty vars))
+        <> (case dd_cons of
+              []  ->
+                mempty
 
-                                                                                               cons ->
-                                                                                                 space <> equals <+> pretty dd_cons) <> foldMap (\a ->
-        space <> "deriving" <+> pretty a) dd_derivs
+              cons ->
+                space <> equals <+> pretty dd_cons)
+        <> foldMap
+             (\a ->
+                 space <> "deriving" <+> pretty a)
+             dd_derivs
   pretty ClassDecl {..} =
-    "class" <+> pretty tcdLName <+> pretty tcdTyVars <+> "where" <> hardline <> indent 2 (concatWith (\x y ->
-      x <> hardline <> hardline <> y) $ map (prettyBind equals . unLoc) (toList tcdMeths) ++ map pretty tcdSigs)
+    "class" <+> pretty tcdLName <+> pretty tcdTyVars <+> "where" <> hardline
+      <> indent 2
+           (concatWith
+              (\x y ->
+                  x <> hardline <> hardline <> y)
+              $ map (prettyBind equals . unLoc) (toList tcdMeths)
+              ++ map pretty tcdSigs)
 
 
 instance Pretty (LHsQTyVars RdrName) where
@@ -216,12 +245,13 @@ instance Pretty (Located (ConDecl RdrName)) where
 
 instance Pretty (ConDecl RdrName) where
   pretty ConDeclH98 {con_name, con_details} =
-    pretty con_name <+> (case con_details of
-                           RecCon xs ->
-                             align (braces (pretty xs))
+    pretty con_name
+      <+> (case con_details of
+             RecCon xs ->
+               align (braces (pretty xs))
 
-                           PrefixCon args ->
-                             hsep (map (parTy . unLoc) args))
+             PrefixCon args ->
+               hsep (map (parTy . unLoc) args))
 
     where
 
@@ -277,8 +307,12 @@ instance Pretty (InstDecl RdrName) where
 
 instance Pretty (ClsInstDecl RdrName) where
   pretty ClsInstDecl {cid_poly_ty, cid_binds} =
-    "instance" <+> align (pretty cid_poly_ty) <+> "where" <> hardline <> indent 2 (concatWith (\x y ->
-      x <> hardline <> hardline <> y) (map (prettyBind equals . unLoc) (toList cid_binds)))
+    "instance" <+> align (pretty cid_poly_ty) <+> "where" <> hardline
+      <> indent 2
+           (concatWith
+              (\x y ->
+                  x <> hardline <> hardline <> y)
+              (map (prettyBind equals . unLoc) (toList cid_binds)))
 
 
 instance Pretty (Located (StmtLR RdrName RdrName (LHsExpr RdrName))) where
@@ -288,7 +322,8 @@ instance Pretty (Located (StmtLR RdrName RdrName (LHsExpr RdrName))) where
 
 instance Pretty body => Pretty (StmtLR RdrName RdrName body) where
   pretty (BindStmt p bod _ _ _) =
-    align $ hang 2 (parPat (unLoc p)) <+> "<-" <> hardline <> indent 2 (pretty bod)
+    align $ hang 2 (parPat (unLoc p)) <+> "<-" <> hardline
+      <> indent 2 (pretty bod)
   pretty (BodyStmt body _ _ _) =
     pretty body
   pretty (LetStmt binds) =
@@ -360,12 +395,16 @@ instance Pretty (HsExpr RdrName) where
   pretty (HsLit lit) =
     pretty lit
   pretty (HsLam mg) =
-    "\\" <> prettyMatchGroup "->" mg
+    "\\" <> align (prettyMatchGroup "->" mg)
   pretty (HsApp a b) =
-    parensExpr (unLoc a) <+> parensExpr (unLoc b)
+    group . hang 2 $ parensExpr (unLoc a) <> line <> parensExpr (unLoc b)
   pretty (OpApp (L _ a) (L _ (HsVar op)) _ (L _ b))
-    | HSFmt.isSymOcc op = parensLeftOp a <+> prettyName (unLoc op) <+> pretty b
-    | otherwise = parensLeftOp a <+> "`" <> pretty op <> "`" <+> pretty b
+    | HSFmt.isSymOcc op = group $ hang 2 $ parensLeftOp a <> line
+                            <> prettyName (unLoc op)
+                            <+> pretty b
+    | otherwise = group $ hang 2 $ parensLeftOp a <> line <> "`" <> pretty op
+                    <> "`"
+                    <+> pretty b
   pretty (OpApp a other _ b) =
     error "OpApp with a non-HsVar operator"
   pretty (NegApp a _) =
@@ -375,15 +414,34 @@ instance Pretty (HsExpr RdrName) where
   pretty (ExplicitTuple args _) =
     parens $ hsep $ punctuate comma (map pretty args)
   pretty (HsCase expr MG {mg_alts}) =
-    align $ "case" <+> align (pretty expr) <+> "of" <> hardline <> indent 2 (concatWith (\x y ->
-      x <> hardline <> hardline <> y) (map (prettyMatch "->" (hang 2) . unLoc) (unLoc mg_alts)))
+    align $ "case" <+> align (pretty expr) <+> "of" <> hardline
+      <> indent 2
+           (concatWith
+              (\x y ->
+                  x <> hardline <> hardline <> y)
+              (map (prettyMatch "->" (hang 2) . unLoc) (unLoc mg_alts)))
   pretty (HsIf _ a b c) =
-    align $ "if" <+> align (pretty a) <+> "then" <> hardline <> indent 2 (pretty b) <> hardline <> "else" <> hardline <> indent 2 (pretty c)
+    align $ "if" <+> align (pretty a) <+> "then" <> hardline
+      <> indent 2 (pretty b)
+      <> hardline
+      <> "else"
+      <> hardline
+      <> indent 2 (pretty c)
   pretty (HsLet binds expr) =
-    align $ "let" <> hardline <> indent 2 (prettyHsLocalBinds equals (unLoc binds)) <> hardline <> hardline <> "in" <> hardline <> indent 2 (pretty expr)
+    align $ "let" <> hardline
+      <> indent 2 (prettyHsLocalBinds equals (unLoc binds))
+      <> hardline
+      <> hardline
+      <> "in"
+      <> hardline
+      <> indent 2 (pretty expr)
   pretty (HsDo _ exprs _) =
-    align $ "do" <> hardline <> indent 2 (concatWith (\x y ->
-      x <> hardline <> hardline <> y) (map (hang 2 . pretty) (unLoc exprs)))
+    align $ "do" <> hardline
+      <> indent 2
+           (concatWith
+              (\x y ->
+                  x <> hardline <> hardline <> y)
+              (map (hang 2 . pretty) (unLoc exprs)))
   pretty (ExplicitList _ _ exprs) =
     list (map (align . pretty) exprs)
   pretty RecordCon {rcon_con_name, rcon_flds} =
@@ -391,7 +449,7 @@ instance Pretty (HsExpr RdrName) where
   pretty (HsSpliceE a) =
     pretty a
   pretty (ExprWithTySig (L _ a) b) =
-    parensExpr a <+> "::" <+> pretty b
+    parens (parensExpr a <+> "::" <+> pretty b)
   pretty RecordUpd {rupd_expr, rupd_flds} =
     parensExpr (unLoc rupd_expr) <+> pretty rupd_flds
   pretty (HsProc pat cmds) =
@@ -426,8 +484,11 @@ instance Pretty (HsCmd RdrName) where
 
 instance Pretty (Located [CmdLStmt RdrName]) where
   pretty (L _ a) =
-    align $ concatWith (\x y ->
-      x <> hardline <> hardline <> y) (map pretty a)
+    align
+      $ concatWith
+          (\x y ->
+              x <> hardline <> hardline <> y)
+          (map pretty a)
 
 
 instance Pretty (Located (StmtLR RdrName RdrName (LHsCmd RdrName))) where
@@ -462,12 +523,14 @@ instance Pretty (AmbiguousFieldOcc RdrName) where
 
 instance Pretty (HsRecordBinds RdrName) where
   pretty HsRecFields {rec_flds, rec_dotdot} =
-    braces (hsep . punctuate comma $ map pretty rec_flds ++ (case rec_dotdot of
-                                                               Nothing  ->
-                                                                 []
+    braces
+      (hsep . punctuate comma $ map pretty rec_flds
+         ++ (case rec_dotdot of
+               Nothing  ->
+                 []
 
-                                                               Just _ ->
-                                                                 [".."]))
+               Just _ ->
+                 [".."]))
 
 
 instance Pretty (LHsRecField RdrName (LHsExpr RdrName)) where
@@ -484,8 +547,12 @@ instance Pretty (HsSplice RdrName) where
   pretty (HsUntypedSplice id_ expr) =
     pretty expr
   pretty (HsQuasiQuote a b _ src) =
-    brackets (prettyInfixName b <> "|" <> column (\n ->
-      indent (negate n) (pretty src)) <> "|")
+    brackets
+      (prettyInfixName b <> "|"
+         <> column
+              (\n ->
+                  indent (negate n) (pretty src))
+         <> "|")
   pretty (HsTypedSplice x expr) =
     "$$" <> parens (pretty expr)
 
@@ -563,8 +630,8 @@ instance Pretty (HsConPatDetails RdrName) where
 
 instance Pretty (HsRecFields RdrName (LPat RdrName)) where
   pretty HsRecFields {rec_flds, rec_dotdot} =
-    braces $ hsep $ punctuate comma $ map pretty rec_flds ++ maybe [] (const [ ".."
-    ]) rec_dotdot
+    braces $ hsep $ punctuate comma $ map pretty rec_flds
+      ++ maybe [] (const [".."]) rec_dotdot
 
 
 instance Pretty (Located (HsRecField RdrName (LPat RdrName))) where
@@ -574,10 +641,11 @@ instance Pretty (Located (HsRecField RdrName (LPat RdrName))) where
 
 instance Pretty (HsRecField RdrName (LPat RdrName)) where
   pretty HsRecField {..} =
-    pretty hsRecFieldLbl <> (if hsRecPun then
-                               mempty
-                             else
-                               space <> equals <+> pretty hsRecFieldArg)
+    pretty hsRecFieldLbl
+      <> (if hsRecPun then
+            mempty
+          else
+            space <> equals <+> pretty hsRecFieldArg)
 
 
 instance Pretty (Located (Pat RdrName)) where
@@ -600,7 +668,10 @@ instance Pretty (Sig RdrName) where
     (if isDefault then
        "default" <> space
      else
-       mempty) <> hsep (punctuate comma (map pretty b)) <+> "::" <+> align (pretty c)
+       mempty)
+      <> hsep (punctuate comma (map pretty b))
+      <+> "::"
+      <+> align (pretty c)
 
 
 instance Pretty (LHsSigWcType RdrName) where
@@ -685,26 +756,34 @@ instance Pretty (Located (ImportDecl RdrName)) where
 
 instance Pretty (ImportDecl RdrName) where
   pretty ImportDecl {ideclName, ideclHiding, ideclQualified, ideclAs, ideclSource} =
-    hsep $ catMaybes [ Just "import"
-                     , if ideclSource then
-                         Just "{-# SOURCE #-}"
-                       else
-                         Nothing
-                     , if ideclQualified then
-                         Just "qualified"
-                       else
-                         Nothing
-                     , Just (pretty ideclName)
-                     , fmap (\as ->
-                         "as" <+> pretty as) ideclAs
-                     , fmap (\(hiding, things) ->
-                         hsep $ catMaybes [ if hiding then
-                                              Just "hiding"
-                                            else
-                                              Nothing
-                                          , Just (align (pretty things))
-                                          ]) ideclHiding
-                     ]
+    hsep
+      $ catMaybes
+          [ Just "import"
+          , if ideclSource then
+              Just "{-# SOURCE #-}"
+            else
+              Nothing
+          , if ideclQualified then
+              Just "qualified"
+            else
+              Nothing
+          , Just (pretty ideclName)
+          , fmap
+              (\as ->
+                  "as" <+> pretty as)
+              ideclAs
+          , fmap
+              (\(hiding, things) ->
+                  hsep
+                    $ catMaybes
+                        [ if hiding then
+                            Just "hiding"
+                          else
+                            Nothing
+                        , Just (align (pretty things))
+                        ])
+              ideclHiding
+          ]
 
 
 instance Pretty (Located ModuleName) where
@@ -806,16 +885,20 @@ instance IsSymOcc b => IsSymOcc (GenLocated a b) where
 
 hardVsep :: [Doc ann] -> Doc ann
 hardVsep =
-  concatWith (\x y ->
-    x <> hardline <> y)
+  concatWith
+    (\x y ->
+        x <> hardline <> y)
 
 
 prettyBind :: Doc ann -> HsBind RdrName -> Doc ann
 prettyBind bind hsBind =
   case hsBind of
     FunBind {fun_id, fun_matches} ->
-      hardVsep $ map (\alt ->
-        pretty fun_id <+> prettyMatch bind align (unLoc alt)) (unLoc $ mg_alts fun_matches)
+      hardVsep
+        $ map
+            (\alt ->
+                pretty fun_id <+> prettyMatch bind align (unLoc alt))
+            (unLoc $ mg_alts fun_matches)
 
     PatBind {pat_lhs, pat_rhs} ->
       hang 2 (parPat (unLoc pat_lhs)) <+> prettyGRHSs bind pat_rhs
@@ -831,7 +914,8 @@ prettyMatch bind alignPatterns Match {m_pats, m_grhss} =
        mempty
 
      _ ->
-       alignPatterns (hsep (map (parPat . unLoc) m_pats) <> space)) <> prettyGRHSs bind m_grhss
+       alignPatterns (hsep (map (parPat . unLoc) m_pats) <> space))
+    <> prettyGRHSs bind m_grhss
 
 
 prettyGRHSs bind GRHSs {grhssGRHSs, grhssLocalBinds} =
@@ -840,18 +924,26 @@ prettyGRHSs bind GRHSs {grhssGRHSs, grhssLocalBinds} =
        prettyGRHS bind (unLoc grhs)
 
      _ ->
-       hardline <> indent 2 (vsep (map (prettyGRHS bind . unLoc) grhssGRHSs))) <> (case unLoc grhssLocalBinds of
-                                                                                     EmptyLocalBinds  ->
-                                                                                       mempty
+       hardline <> indent 2 (vsep (map (prettyGRHS bind . unLoc) grhssGRHSs)))
+    <> (case unLoc grhssLocalBinds of
+          EmptyLocalBinds  ->
+            mempty
 
-                                                                                     _ ->
-                                                                                       hardline <> hardline <> indent 2 ("where" <> hardline <> hardline <> indent 2 (prettyHsLocalBinds bind (unLoc grhssLocalBinds))))
+          _ ->
+            hardline <> hardline
+              <> indent 2
+                   ("where" <> hardline <> hardline
+                      <> indent 2
+                           (prettyHsLocalBinds bind (unLoc grhssLocalBinds))))
 
 
 prettyGRHS bind (GRHS []  body) =
   bind <> hardline <> indent 2 (pretty body)
 prettyGRHS bind (GRHS guards body) =
-  "|" <+> align (hsep (punctuate comma (map (prettyGuard . unLoc) guards)) <+> bind <+> pretty body)
+  "|"
+    <+> align
+          (hsep (punctuate comma (map (prettyGuard . unLoc) guards)) <+> bind
+             <+> pretty body)
 
 
 prettyGuard :: GuardStmt RdrName -> Doc ann
@@ -878,8 +970,10 @@ prettyHsLocalBinds bind (HsValBinds b) =
 
 
 prettyHsValBindsLR bind (ValBindsIn bnds _) =
-  concatWith (\x y ->
-    x <> hardline <> hardline <> y) $ map (prettyBind bind . unLoc) (toList bnds)
+  concatWith
+    (\x y ->
+        x <> hardline <> hardline <> y)
+    $ map (prettyBind bind . unLoc) (toList bnds)
 
 
 prettyMatchGroup bind MG {mg_alts} =
@@ -887,19 +981,27 @@ prettyMatchGroup bind MG {mg_alts} =
 
 
 atLeastAlign d =
-  column (\k ->
-    nesting (\i ->
-      nest (max 0 (k - i)) d))
+  column
+    (\k ->
+        nesting
+          (\i ->
+              nest (max 0 (k - i)) d))
 
 
 tupled :: [Doc ann] -> Doc ann
 tupled =
-  group . encloseSepAligning atLeastAlign (lparen <> flatAlt space mempty) (line' <> rparen) (comma <> space)
+  group
+    . encloseSepAligning atLeastAlign (lparen <> flatAlt space mempty)
+        (line' <> rparen)
+        (comma <> space)
 
 
 list :: [Doc ann] -> Doc ann
 list =
-  group . encloseSepAligning atLeastAlign (lbracket <> flatAlt space mempty) (line' <> rbracket) (comma <> space)
+  group
+    . encloseSepAligning atLeastAlign (lbracket <> flatAlt space mempty)
+        (line' <> rbracket)
+        (comma <> space)
 
 
 encloseSepAligning :: (Doc ann -> Doc ann) -> Doc ann -> Doc ann -> Doc ann -> [Doc ann] -> Doc ann
