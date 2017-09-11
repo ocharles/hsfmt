@@ -389,6 +389,10 @@ instance Pretty (HsExpr RdrName) where
     parensExpr (unLoc rupd_expr) <+> pretty rupd_flds
   pretty (HsProc pat cmds) =
     align $ "proc" <+> align (pretty pat) <+> "->" <+> pretty cmds
+  pretty (SectionR (L _ (HsVar op)) a) =
+    prettyName (unLoc op) <+> pretty a
+  pretty (SectionL a (L _ (HsVar op))) =
+    pretty a <+> prettyName (unLoc op)
 
 
 instance Pretty (Located (HsCmdTop RdrName)) where
