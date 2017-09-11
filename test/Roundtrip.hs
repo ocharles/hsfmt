@@ -7,13 +7,12 @@
 
 module Main where
 
-import BasicTypes (Boxity(Boxed), Origin(FromSource))
-import TcEvidence (HsWrapper(WpHole))
-import Data.Algorithm.Diff
-import Data.Algorithm.DiffOutput
 import qualified Bag
 import qualified BasicTypes
+import BasicTypes (Boxity(Boxed), Origin(FromSource))
 import Control.Monad.IO.Class
+import Data.Algorithm.Diff
+import Data.Algorithm.DiffOutput
 import Data.Text.Prettyprint.Doc (pretty)
 import qualified FastString
 import qualified GHC
@@ -25,6 +24,7 @@ import Language.Haskell.GHC.ExactPrint (exactPrint)
 import Language.Haskell.GHC.ExactPrint.Parsers (parseModuleFromString)
 import qualified RdrName
 import System.IO
+import TcEvidence (HsWrapper(WpHole))
 
 
 
@@ -42,22 +42,21 @@ main =
 
 prop_moduleRoundtrip :: Property
 prop_moduleRoundtrip =
-  withTests 1000 $ property $ (do
-                                 ShowModule mod <-
-                                   forAll (fmap ShowModule genModule)
+  withTests 1000 $ property $ do
+                                ShowModule mod <-
+                                  forAll (fmap ShowModule genModule)
 
-                                 footnote (show $ ShowModule mod)
+                                footnote (show $ ShowModule mod)
 
-                                 parse <-
-                                   liftIO (parseModuleFromString "input.hs" (show (pretty mod)))
+                                parse <-
+                                  liftIO (parseModuleFromString "input.hs" (show (pretty mod)))
 
-                                 case parse of
-                                   Left e ->
-                                     fail (show e)
+                                case parse of
+                                  Left e ->
+                                    fail (show e)
 
-                                   Right (_, parsed) ->
-                                     do
-                                       footnote (ppDiff $ getGroupedDiff (lines $ show (pretty mod)) (lines $ show (pretty parsed))))
+                                  Right (_, parsed) ->
+                                    footnote (ppDiff $ getGroupedDiff (lines $ show (pretty mod)) (lines $ show (pretty parsed)))
 
 
 newtype ShowModule = ShowModule (GHC.HsModule GHC.RdrName)
@@ -223,7 +222,7 @@ genDataFamInstDecl =
 
 genHsTyPats :: Gen (GHC.HsImplicitBndrs RdrName.RdrName [GHC.Located (GHC.HsType RdrName.RdrName)])
 genHsTyPats =
-  GHC.HsIB <$> pure GHC.PlaceHolder <*> (Gen.list (Range.linear 0 10) (located genHsType))
+  GHC.HsIB <$> pure GHC.PlaceHolder <*> Gen.list (Range.linear 0 10) (located genHsType)
 
 
 genHsImplicitBndrs :: Gen (GHC.HsImplicitBndrs RdrName.RdrName (GHC.Located (GHC.HsType RdrName.RdrName)))
@@ -314,11 +313,9 @@ genHsType :: Gen (GHC.HsType RdrName.RdrName)
 genHsType =
   Gen.recursive Gen.choice [ GHC.HsTyVar <$> located genTyVar
   ] [ GHC.HsAppsTy <$> Gen.list (Range.linear 1 3) (located (GHC.HsAppPrefix <$> located genHsType))
-    , Gen.subterm2 genHsType genHsType $ (\a b ->
-        GHC.HsAppTy (GHC.L srcSpan a) (GHC.L srcSpan b))
-    , Gen.subterm2 genHsType genHsType $ (\a b ->
-        GHC.HsFunTy (GHC.L srcSpan a) (GHC.L srcSpan b))
-    , Gen.subtermM genHsType $ (\expr ->
+    , Gen.subterm2 genHsType genHsType (GHC.HsAppTy `on` GHC.L srcSpan)
+    , Gen.subterm2 genHsType genHsType (GHC.HsFunTy `on` GHC.L srcSpan)
+    , Gen.subtermM genHsType (\expr ->
         GHC.HsListTy <$> located (pure expr))
     , GHC.HsTupleTy <$> Gen.element [ GHC.HsUnboxedTuple
                                     , GHC.HsBoxedTuple
@@ -327,7 +324,7 @@ genHsType =
                                     ] <*> Gen.list (Range.linear 0 3) (located genHsType)
     , Gen.subterm genHsType $ GHC.HsParTy . GHC.L GHC.noSrcSpan
     , GHC.HsTyLit <$> Gen.choice [ fmap (\n ->
-                                     GHC.HsNumTy (show n) n) (Gen.integral (Range.linear (100) 100))
+                                     GHC.HsNumTy (show n) n) (Gen.integral (Range.linear (-100) 100))
                                  , fmap (\s ->
                                      GHC.HsStrTy (show s) (FastString.fsLit s)) (Gen.string (Range.linear 0 10) Gen.latin1)
                                  ]
@@ -363,11 +360,11 @@ genBind =
 
 genBinds :: Gen (GHC.LHsBinds RdrName.RdrName)
 genBinds =
-  Gen.recursive Gen.choice [ fmap (Bag.listToBag . map (GHC.L GHC.noSrcSpan)) $ Gen.list (Range.singleton 1) (GHC.VarBind <$> genVarName <*> located genExpr <*> Gen.bool)
+  Gen.recursive Gen.choice [ (Bag.listToBag . map (GHC.L GHC.noSrcSpan)) <$> Gen.list (Range.singleton 1) (GHC.VarBind <$> genVarName <*> located genExpr <*> Gen.bool)
   ] [ Gen.subtermM genBinds (\localBinds ->
-        fmap (Bag.listToBag . map (GHC.L GHC.noSrcSpan)) $ Gen.list (Range.linear 0 10) (Gen.choice [ GHC.FunBind <$> located genVarName <*> (GHC.MG <$> located (Gen.list (Range.singleton 1) (located $ GHC.Match <$> pure GHC.NonFunBindMatch <*> Gen.list (Range.linear 1 10) (located genPat) <*> pure Nothing <*> grhsss localBinds)) <*> pure [] <*> pure GHC.PlaceHolder <*> pure FromSource) <*> pure WpHole <*> pure GHC.PlaceHolder <*> pure []
-                                                                                                    , GHC.PatBind <$> located genPat <*> grhsss localBinds <*> pure GHC.PlaceHolder <*> pure GHC.PlaceHolder <*> pure ([], [])
-                                                                                                    ]))
+        (Bag.listToBag . map (GHC.L GHC.noSrcSpan)) <$> Gen.list (Range.linear 0 10) (Gen.choice [ GHC.FunBind <$> located genVarName <*> (GHC.MG <$> located (Gen.list (Range.singleton 1) (located $ GHC.Match <$> pure GHC.NonFunBindMatch <*> Gen.list (Range.linear 1 10) (located genPat) <*> pure Nothing <*> grhsss localBinds)) <*> pure [] <*> pure GHC.PlaceHolder <*> pure FromSource) <*> pure WpHole <*> pure GHC.PlaceHolder <*> pure []
+                                                                                                 , GHC.PatBind <$> located genPat <*> grhsss localBinds <*> pure GHC.PlaceHolder <*> pure GHC.PlaceHolder <*> pure ([], [])
+                                                                                                 ]))
   ]
 
   where
@@ -384,14 +381,14 @@ genPat =
                            , GHC.VarPat <$> located genVarName
                            , GHC.LitPat <$> genLit
                            ] [ GHC.ListPat <$> Gen.list (Range.linear 1 10) (located genPat) <*> pure GHC.PlaceHolder <*> pure Nothing
-                             , Gen.subterm2 genPat genPat $ (\l r ->
+                             , Gen.subterm2 genPat genPat (\l r ->
                                  GHC.ConPatIn (GHC.L GHC.noSrcSpan (RdrName.mkVarUnqual . FastString.fsLit $ ":")) (GHC.InfixCon (GHC.L GHC.noSrcSpan l) (GHC.L GHC.noSrcSpan r)))
                              , GHC.ConPatIn <$> located genTypeName <*> (GHC.RecCon <$> (GHC.HsRecFields <$> Gen.list (Range.linear 0 3) (located (GHC.HsRecField <$> located (GHC.FieldOcc <$> located genVarName <*> pure GHC.PlaceHolder) <*> located genPat <*> Gen.bool)) <*> Gen.maybe (Gen.integral (Range.linear 0 2))))
-                             , Gen.subtermM genPat $ (\p ->
+                             , Gen.subtermM genPat (\p ->
                                  GHC.AsPat <$> located genVarName <*> located (pure p))
-                             , Gen.subtermM genPat $ (\p ->
+                             , Gen.subtermM genPat (\p ->
                                  GHC.ViewPat <$> located genExpr <*> located (pure p) <*> pure GHC.PlaceHolder)
-                             , Gen.subtermM genPat $ (\p ->
+                             , Gen.subtermM genPat (\p ->
                                  GHC.ParPat <$> located (pure p))
                              , GHC.TuplePat <$> Gen.list (Range.linear 1 3) (located genPat) <*> pure Boxed <*> pure []
                              ]
@@ -431,8 +428,8 @@ genLocalBinds =
 
 
 genLit =
-  Gen.choice [ fmap (\s ->
-                 GHC.HsString (show s) (FastString.fsLit s)) $ Gen.string (Range.linear 0 100) Gen.alphaNum
+  Gen.choice [ (\s ->
+                 GHC.HsString (show s) (FastString.fsLit s)) <$> Gen.string (Range.linear 0 100) Gen.alphaNum
              , fmap (\c ->
                  GHC.HsChar (show c) c) Gen.latin1
              ]
@@ -441,14 +438,13 @@ genLit =
 genExpr :: Gen (GHC.HsExpr RdrName.RdrName)
 genExpr =
   Gen.recursive Gen.choice [ GHC.HsVar <$> located genVarName
-                           , GHC.HsOverLit <$> (GHC.OverLit <$> (Gen.choice [ fmap (\i ->
-                                                                                GHC.HsIntegral (show i) i) $ Gen.integral (Range.linear 0 100)
-                             ]) <*> pure GHC.PlaceHolder <*> pure GHC.EWildPat <*> pure GHC.PlaceHolder)
+                           , GHC.HsOverLit <$> (GHC.OverLit <$> Gen.choice [ (\i ->
+                                                                               GHC.HsIntegral (show i) i) <$> Gen.integral (Range.linear 0 100)
+                             ] <*> pure GHC.PlaceHolder <*> pure GHC.EWildPat <*> pure GHC.PlaceHolder)
                            , GHC.HsLit <$> genLit
-                           ] [ Gen.subtermM genExpr $ (\expr ->
+                           ] [ Gen.subtermM genExpr (\expr ->
                                  GHC.HsLam <$> genMG (Range.singleton 1) (Range.linear 1 3) (Range.singleton 0) (pure expr))
-                             , Gen.subterm2 genExpr genExpr (\a b ->
-                                 GHC.HsApp (GHC.L GHC.noSrcSpan a) (GHC.L GHC.noSrcSpan b))
+                             , Gen.subterm2 genExpr genExpr (GHC.HsApp `on` GHC.L GHC.noSrcSpan)
                              , Gen.subtermM2 genExpr genExpr (\l r ->
                                  GHC.OpApp <$> located (pure l) <*> located (GHC.HsVar <$> located genVarName) <*> pure GHC.PlaceHolder <*> located (pure r))
                              , Gen.subterm genExpr (GHC.HsPar . GHC.L GHC.noSrcSpan)
@@ -465,19 +461,19 @@ genExpr =
                                        return body
 
                                    _ ->
-                                     []) $ Gen.subtermM genExpr $ (\e ->
+                                     []) $ Gen.subtermM genExpr (\e ->
                                  GHC.HsCase <$> located (pure e) <*> genMG (Range.linear 1 3) (Range.singleton 1) (Range.linear 0 2) genExpr)
-                             , Gen.subterm3 genExpr genExpr genExpr $ (\a b c ->
+                             , Gen.subterm3 genExpr genExpr genExpr (\a b c ->
                                  GHC.HsIf Nothing (GHC.L GHC.noSrcSpan a) (GHC.L GHC.noSrcSpan b) (GHC.L GHC.noSrcSpan c))
-                             , Gen.subtermM genExpr $ (\body ->
+                             , Gen.subtermM genExpr (\body ->
                                  GHC.HsLet <$> located genLocalBinds <*> located (pure body))
                              , GHC.HsDo <$> pure GHC.DoExpr <*> located (Gen.list (Range.linear 1 10) genStmt) <*> pure GHC.PlaceHolder
                              , GHC.ExplicitTuple <$> Gen.list (Range.linear 1 10) (located (GHC.Present <$> located genExpr)) <*> pure Boxed
                              , GHC.ExplicitList <$> pure GHC.PlaceHolder <*> pure Nothing <*> Gen.list (Range.linear 1 10) (located genExpr)
                              , GHC.RecordCon <$> located genTypeName <*> pure GHC.PlaceHolder <*> pure GHC.EWildPat <*> (GHC.HsRecFields <$> Gen.list (Range.linear 1 3) (located (GHC.HsRecField <$> located (GHC.FieldOcc <$> located genVarName <*> pure GHC.PlaceHolder) <*> located genExpr <*> Gen.bool)) <*> Gen.maybe (Gen.integral (Range.linear 0 100)))
-                             , Gen.subtermM genExpr $ (\e ->
+                             , Gen.subtermM genExpr (\e ->
                                  GHC.ExprWithTySig <$> located (pure e) <*> (GHC.HsIB <$> pure GHC.PlaceHolder <*> (GHC.HsWC <$> pure GHC.PlaceHolder <*> pure Nothing <*> located genHsType)))
-                             , Gen.subtermM genExpr $ (\expr ->
+                             , Gen.subtermM genExpr (\expr ->
                                  GHC.RecordUpd <$> located (pure expr) <*> Gen.list (Range.linear 1 3) (located $ GHC.HsRecField <$> located (GHC.Unambiguous <$> located genVarName <*> pure GHC.PlaceHolder) <*> located genExpr <*> Gen.bool) <*> pure GHC.PlaceHolder <*> pure GHC.PlaceHolder <*> pure GHC.PlaceHolder <*> pure GHC.PlaceHolder)
                              ]
 
@@ -545,7 +541,7 @@ genModuleName =
   fmap GHC.mkModuleName $ (:) <$> Gen.upper <*> Gen.string (Range.linear 0 10) Gen.alphaNum
 
 
-typeName :: Gen [Char]
+typeName :: Gen String
 typeName =
   (:) <$> Gen.upper <*> Gen.string (Range.linear 0 10) Gen.alphaNum
 
@@ -557,15 +553,14 @@ genTypeName =
 
 genTyVar :: Gen RdrName.RdrName
 genTyVar =
-  fmap (RdrName.mkVarUnqual . FastString.fsLit) $ Gen.filter (\name ->
-    not (name `elem` ["do", "if", "of", "in", "let"
-                     ])) $ ((:) <$> Gen.lower <*> Gen.string (Range.linear 0 10) Gen.alphaNum)
+  RdrName.mkVarUnqual . FastString.fsLit <$> Gen.filter (\name ->
+    name `notElem` ["do", "if", "of", "in", "let"
+                   ]) ((:) <$> Gen.lower <*> Gen.string (Range.linear 0 10) Gen.alphaNum)
 
 
 genVarName :: Gen RdrName.RdrName
 genVarName =
-  Gen.choice [genTyVar, fmap (RdrName.mkVarUnqual . FastString.fsLit) $ pure "+"
-             ]
+  Gen.choice [genTyVar, pure $ RdrName.mkVarUnqual . FastString.fsLit $ "+"]
 
 
 genAnyName =
