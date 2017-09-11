@@ -14,7 +14,8 @@ import GHC hiding (parseModule)
 import Language.Haskell.GHC.ExactPrint ( Annotation(..)
                                        , Anns
                                        , AnnKey(..)
-                                       , parseModule )
+                                       , parseModule
+                                       )
 import Module
 import qualified Name as GHC
 import OccName
@@ -80,7 +81,8 @@ prettyPrintFile path =
         error (show e)
 
       Right (anns, parsed) ->
-        return (unlines $ map nullWhitespace $ lines $ renderString $ layoutPretty defaultLayoutOptions { layoutPageWidth = AvailablePerLine 80 1 } (pretty parsed :: Doc (  )))
+        return (unlines $ map nullWhitespace $ lines $ renderString $ layoutPretty defaultLayoutOptions { layoutPageWidth = AvailablePerLine 80 1 } (pretty parsed :: Doc (
+        )))
 
 
 instance Pretty ParsedSource where
@@ -823,7 +825,7 @@ atLeastAlign d =
 
 tupled :: [Doc ann] -> Doc ann
 tupled =
-  group . encloseSepAligning atLeastAlign (flatAlt "( " "(") (flatAlt " )" ")") ", "
+  group . encloseSepAligning atLeastAlign (lparen <> flatAlt space mempty) (line' <> rparen) (comma <> space)
 
 
 list :: [Doc ann] -> Doc ann
