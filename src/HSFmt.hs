@@ -481,6 +481,13 @@ instance Pretty (Pat RdrName) where
     brackets (hsep $ punctuate comma $ map pretty pats)
   pretty (ViewPat expr pat _) =
     align (parensExpr (unLoc expr)) <+> "->" <+> pretty pat
+  pretty (NPat l neg _ _) =
+    foldMap (const "-") neg <> pretty l
+
+
+instance Pretty (Located (HsOverLit RdrName)) where
+  pretty (L _ a) =
+    pretty a
 
 
 instance Pretty (HsConPatDetails RdrName) where
