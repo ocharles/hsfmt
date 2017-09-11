@@ -131,6 +131,13 @@ instance Pretty (HsDecl RdrName) where
     pretty a
   pretty (SpliceD a) =
     pretty a
+  pretty (AnnD ann) =
+    pretty ann
+
+
+instance Pretty (AnnDecl RdrName) where
+  pretty (HsAnnotation st _ expr) =
+    pretty st <+> pretty expr <+> "#-}"
 
 
 instance Pretty (SpliceDecl RdrName) where
