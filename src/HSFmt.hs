@@ -279,7 +279,7 @@ instance Pretty (Located (StmtLR RdrName RdrName (LHsExpr RdrName))) where
     pretty a
 
 
-instance Pretty (StmtLR RdrName RdrName (LHsExpr RdrName)) where
+instance Pretty body => Pretty (StmtLR RdrName RdrName body) where
   pretty (BindStmt p bod _ _ _) =
     align $ hang 2 (parPat (unLoc p)) <+> "<-" <> hardline <> indent 2 (pretty bod)
   pretty (BodyStmt body _ _ _) =
@@ -387,6 +387,41 @@ instance Pretty (HsExpr RdrName) where
     parensExpr a <+> "::" <+> pretty b
   pretty RecordUpd {rupd_expr, rupd_flds} =
     parensExpr (unLoc rupd_expr) <+> pretty rupd_flds
+  pretty (HsProc pat cmds) =
+    align $ "proc" <+> align (pretty pat) <+> "->" <+> pretty cmds
+
+
+instance Pretty (Located (HsCmdTop RdrName)) where
+  pretty (L _ a) =
+    pretty a
+
+
+instance Pretty (HsCmdTop RdrName) where
+  pretty (HsCmdTop cmd _ _ _) =
+    pretty cmd
+
+
+instance Pretty (Located (HsCmd RdrName)) where
+  pretty (L _ a) =
+    pretty a
+
+
+instance Pretty (HsCmd RdrName) where
+  pretty (HsCmdDo stmts _) =
+    "do" <+> align (pretty stmts)
+  pretty (HsCmdArrApp expr args _ HsFirstOrderApp  True ) =
+    pretty expr <+> "-<" <+> pretty args
+
+
+instance Pretty (Located [CmdLStmt RdrName]) where
+  pretty (L _ a) =
+    align $ concatWith (\x y ->
+      x <> hardline <> hardline <> y) (map pretty a)
+
+
+instance Pretty (Located (StmtLR RdrName RdrName (LHsCmd RdrName))) where
+  pretty (L _ a) =
+    pretty a
 
 
 instance Pretty (Located (HsRecUpdField RdrName)) where
