@@ -270,7 +270,7 @@ instance Pretty (InstDecl RdrName) where
 
 instance Pretty (ClsInstDecl RdrName) where
   pretty ClsInstDecl {cid_poly_ty, cid_binds} =
-    "instance" <+> pretty cid_poly_ty <+> "where" <> hardline <> indent 2 (concatWith (\x y ->
+    "instance" <+> align (pretty cid_poly_ty) <+> "where" <> hardline <> indent 2 (concatWith (\x y ->
       x <> hardline <> hardline <> y) (map (prettyBind equals . unLoc) (toList cid_binds)))
 
 
