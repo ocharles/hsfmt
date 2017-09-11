@@ -285,7 +285,7 @@ instance Pretty (Located (StmtLR RdrName RdrName (LHsExpr RdrName))) where
 
 instance Pretty (StmtLR RdrName RdrName (LHsExpr RdrName)) where
   pretty (BindStmt p bod _ _ _) =
-    align $ parPat (unLoc p) <+> "<-" <> hardline <> indent 2 (pretty bod)
+    align $ hang 2 (parPat (unLoc p)) <+> "<-" <> hardline <> indent 2 (pretty bod)
   pretty (BodyStmt body _ _ _) =
     pretty body
   pretty (LetStmt binds) =
