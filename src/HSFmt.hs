@@ -321,7 +321,27 @@ parensExpr (expr@NegApp {}) =
   parens (pretty expr)
 parensExpr (expr@ExprWithTySig {}) =
   parens (pretty expr)
+parensExpr (expr@OpApp {}) =
+  parens (pretty expr)
 parensExpr a =
+  pretty a
+
+
+parensLeftOp (expr@HsLam {}) =
+  parens (pretty expr)
+parensLeftOp (expr@HsCase {}) =
+  parens (pretty expr)
+parensLeftOp (expr@HsIf {}) =
+  parens (pretty expr)
+parensLeftOp (expr@HsLet {}) =
+  parens (pretty expr)
+parensLeftOp (expr@HsDo {}) =
+  parens (pretty expr)
+parensLeftOp (expr@NegApp {}) =
+  parens (pretty expr)
+parensLeftOp (expr@ExprWithTySig {}) =
+  parens (pretty expr)
+parensLeftOp a =
   pretty a
 
 
@@ -337,8 +357,8 @@ instance Pretty (HsExpr RdrName) where
   pretty (HsApp a b) =
     parensExpr (unLoc a) <+> parensExpr (unLoc b)
   pretty (OpApp (L _ a) (L _ (HsVar op)) _ (L _ b))
-    | HSFmt.isSymOcc op = parensExpr a <+> prettyName (unLoc op) <+> parensExpr b
-    | otherwise = parensExpr a <+> "`" <> pretty op <> "`" <+> parensExpr b
+    | HSFmt.isSymOcc op = parensLeftOp a <+> prettyName (unLoc op) <+> pretty b
+    | otherwise = parensLeftOp a <+> "`" <> pretty op <> "`" <+> pretty b
   pretty (OpApp a other _ b) =
     error "OpApp with a non-HsVar operator"
   pretty (NegApp a _) =
