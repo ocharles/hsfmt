@@ -640,7 +640,7 @@ instance Pretty (ImportDecl RdrName) where
                                               Just "hiding"
                                             else
                                               Nothing
-                                          , Just (pretty things)
+                                          , Just (align (pretty things))
                                           ])
                      ]
 
