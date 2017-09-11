@@ -3,8 +3,9 @@
 
 module HSFmt (prettyPrintFile) where
 
+import BasicTypes (fl_text)
 import Data.Maybe
-import Data.Text.Prettyprint.Doc
+import Data.Text.Prettyprint.Doc hiding (list, tupled)
 import Data.Text.Prettyprint.Doc.Render.String
 import Data.Foldable (toList)
 import FastString
@@ -288,6 +289,10 @@ instance Pretty (HsOverLit RdrName) where
 instance Pretty OverLitVal where
   pretty (HsIntegral st _) =
     pretty st
+  pretty (HsIsString st _) =
+    pretty st
+  pretty (HsFractional ft) =
+    pretty (fl_text ft)
 
 
 parensExpr (expr@HsLam {}) =
@@ -425,11 +430,15 @@ instance Pretty (HsTupArg RdrName) where
 instance Pretty HsLit where
   pretty (HsString src _) =
     pretty src
+  pretty (HsChar src _) =
+    pretty src
 
 
 parPat (a@(ConPatIn _ InfixCon {})) =
   parens (pretty a)
 parPat (a@AsPat {}) =
+  parens (pretty a)
+parPat (a@ViewPat {}) =
   parens (pretty a)
 parPat a =
   pretty a
@@ -441,7 +450,7 @@ instance Pretty (Pat RdrName) where
   pretty (VarPat name) =
     pretty name
   pretty (AsPat id_ pat) =
-    pretty id_ <> "@" <> pretty pat
+    pretty id_ <> "@" <> parPat (unLoc pat)
   pretty (ParPat p) =
     parens (pretty p)
   pretty (TuplePat pats _ _) =
@@ -454,6 +463,8 @@ instance Pretty (Pat RdrName) where
     pretty a
   pretty (ListPat pats _ _) =
     brackets (hsep $ punctuate comma $ map pretty pats)
+  pretty (ViewPat expr pat _) =
+    align (parensExpr (unLoc expr)) <+> "->" <+> pretty pat
 
 
 instance Pretty (HsConPatDetails RdrName) where
@@ -533,7 +544,7 @@ instance Pretty (HsType RdrName) where
   pretty (HsAppsTy apps) =
     pretty apps
   pretty (HsAppTy a b) =
-    pretty [a, b]
+    pretty a <+> pretty b
   pretty (HsFunTy l r) =
     pretty l <+> "->" <+> pretty r
   pretty (HsListTy t) =
@@ -544,6 +555,17 @@ instance Pretty (HsType RdrName) where
     parens (pretty a)
   pretty (HsForAllTy bndrs t) =
     "forall" <+> hsep (map pretty bndrs) <> dot <+> pretty t
+  pretty (HsTyLit t) =
+    pretty t
+  pretty (HsExplicitTupleTy _ tys) =
+    squote <> tupled (map pretty tys)
+
+
+instance Pretty HsTyLit where
+  pretty (HsNumTy src _) =
+    pretty src
+  pretty (HsStrTy src _) =
+    pretty src
 
 
 instance Pretty (Located (HsAppType RdrName)) where
@@ -637,6 +659,8 @@ instance Pretty (IE RdrName) where
     pretty name <> "(..)"
   pretty (IEThingWith name _ names _) =
     pretty name <> tupled (map pretty names)
+  pretty (IEModuleContents mod) =
+    "module" <+> pretty mod
 
 
 instance Pretty (Located RdrName) where
@@ -709,7 +733,7 @@ prettyBind bind hsBind =
         pretty fun_id <+> prettyMatch bind (unLoc alt)) (unLoc $ mg_alts fun_matches)
 
     PatBind {pat_lhs, pat_rhs} ->
-      align $ parPat (unLoc pat_lhs) <+> prettyGRHSs bind pat_rhs
+      hang 2 (parPat (unLoc pat_lhs)) <+> prettyGRHSs bind pat_rhs
 
     VarBind {var_id, var_rhs} ->
       prettyInfixName var_id <+> bind <> hardline <> indent 2 (pretty var_rhs)
@@ -754,6 +778,10 @@ prettyGuard (a@(BodyStmt (L _ e) _ _ _)) | needsParens e = parens (pretty a)
       True
     needsParens HsLam {} =
       True
+    needsParens (HsIf _ _ _ (L _ (ExprWithTySig {}))) =
+      True
+    needsParens HsCase {} =
+      True
     needsParens _ =
       False
 prettyGuard a =
@@ -777,6 +805,16 @@ atLeastAlign d =
   column (\k ->
     nesting (\i ->
       nest (max 0 (k - i)) d))
+
+
+tupled :: [Doc ann] -> Doc ann
+tupled =
+  group . encloseSepAligning atLeastAlign (flatAlt "( " "(") (flatAlt " )" ")") ", "
+
+
+list :: [Doc ann] -> Doc ann
+list =
+  group . encloseSepAligning atLeastAlign (flatAlt "[ " "[") (flatAlt " ]" "]") ", "
 
 
 encloseSepAligning :: (Doc ann -> Doc ann) -> Doc ann -> Doc ann -> Doc ann -> [Doc ann] -> Doc ann
