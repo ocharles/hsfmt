@@ -3,6 +3,7 @@
 
 module HSFmt (prettyPrintFile) where
 
+import Data.Char
 import BasicTypes (fl_text)
 import Data.Maybe
 import Data.Text.Prettyprint.Doc hiding (list, tupled)
@@ -55,6 +56,19 @@ splitNames names (x : xs) =
       ([], x : xs)
 
 
+nullWhitespace :: String -> String
+nullWhitespace s =
+  fromMaybe s (go s)
+
+  where
+
+    go []  =
+      Just []
+    go (a : as)
+      | isSpace a = go as
+      | otherwise = Nothing
+
+
 prettyPrintFile :: FilePath -> IO String
 prettyPrintFile path =
   do
@@ -66,7 +80,7 @@ prettyPrintFile path =
         error (show e)
 
       Right (anns, parsed) ->
-        return (renderString $ layoutPretty defaultLayoutOptions { layoutPageWidth = AvailablePerLine 80 1 } (pretty parsed :: Doc (  )))
+        return (unlines $ map nullWhitespace $ lines $ renderString $ layoutPretty defaultLayoutOptions { layoutPageWidth = AvailablePerLine 80 1 } (pretty parsed :: Doc (  )))
 
 
 instance Pretty ParsedSource where
