@@ -278,10 +278,6 @@ instance Pretty (Located (StmtLR RdrName RdrName (LHsExpr RdrName))) where
   pretty (L _loc a) =
     pretty a
 
-  prettyList =
-    concatWith (\x y ->
-      x <> hardline <> hardline <> y) . map pretty
-
 
 instance Pretty (StmtLR RdrName RdrName (LHsExpr RdrName)) where
   pretty (BindStmt p bod _ _ _) =
