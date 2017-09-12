@@ -415,6 +415,10 @@ instance Pretty body => Pretty (StmtLR RdrName RdrName body) where
     pretty body
   pretty (LetStmt binds) =
     "let" <> hardline <+> indent 2 (prettyHsLocalBinds equals (unLoc binds))
+  pretty (ParStmt stmts expr _ _) =
+    brackets $ pretty expr
+  pretty (LastStmt a _ _) =
+    pretty a
 
 
 instance Pretty (Located (HsExpr RdrName)) where
@@ -522,7 +526,21 @@ instance Pretty (HsExpr RdrName) where
       <> "in"
       <> hardline
       <> indent 2 (pretty expr)
-  pretty (HsDo _ exprs _) =
+  pretty (HsDo ListComp  (L _ exprs) _) =
+    let
+      go []  expr acc =
+        brackets $ expr <+> "|" <+> align (hsep (punctuate comma (reverse acc)))
+      go (L _ x : xs) expr acc =
+        case x of
+          LastStmt e _ _ ->
+            go xs (expr <> pretty e) acc
+
+          bnd ->
+            go xs expr (pretty bnd : acc)
+
+    in
+      go exprs mempty []
+  pretty (HsDo DoExpr  exprs _) =
     align $ "do" <> hardline
       <> indent 2
            (concatWith
@@ -676,7 +694,7 @@ instance Pretty (LHsTupArg RdrName) where
 instance Pretty (HsTupArg RdrName) where
   pretty (Present expr) =
     pretty expr
-  pretty Missing{} =
+  pretty Missing {} =
     mempty
 
 
