@@ -266,7 +266,9 @@ instance Pretty (Located (ConDecl RdrName)) where
 
 
 instance Pretty (ConDecl RdrName) where
-  pretty ConDeclH98 {con_name, con_details} =
+  pretty ConDeclH98 {con_name, con_details, con_cxt, con_qvars} =
+    (foldMap (\vars -> "forall" <+> pretty con_qvars <> dot <> space) con_qvars) <>
+    (foldMap (\ctx -> pretty ctx <+> "=>" <> space) con_cxt) <>
     pretty con_name
       <+> (case con_details of
              RecCon xs ->
