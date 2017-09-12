@@ -5,7 +5,7 @@ module HSFmt (prettyPrintFile) where
 import Control.Monad
 import qualified Data.Map as Map
 import Data.Char
-import BasicTypes (fl_text)
+import BasicTypes (fl_text, InlinePragma(..))
 import Data.Maybe
 import Data.Text.Prettyprint.Doc hiding (list, tupled)
 import Data.Text.Prettyprint.Doc.Render.String
@@ -809,6 +809,8 @@ instance Pretty (Sig RdrName) where
       <> hsep (punctuate comma (map pretty b))
       <+> "::"
       <+> align (pretty c)
+  pretty (InlineSig n (InlinePragma {inl_src})) =
+    pretty inl_src  <+> pretty n <+> "#-}"
 
 
 instance Pretty (LHsSigWcType RdrName) where
