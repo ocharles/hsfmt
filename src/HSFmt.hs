@@ -86,23 +86,22 @@ prettyPrintFile path =
         error (show e)
 
       Right (anns, parsed) ->
-        do
-          return
-            $ concat
-                [ case parsed of
-                    L srcSpan a ->
-                      case AnnKey srcSpan (annGetConstr a) `Map.lookup` anns of
-                        Just ann ->
-                          unlines $ concatMap yieldComment (annsDP ann)
+        return
+          $ concat
+              [ case parsed of
+                  L srcSpan a ->
+                    case AnnKey srcSpan (annGetConstr a) `Map.lookup` anns of
+                      Just ann ->
+                        unlines $ concatMap yieldComment (annsDP ann)
 
-                        Nothing  ->
-                          mzero
-                , unlines $ map nullWhitespace $ lines $ renderString
-                    $ layoutPretty
-                        defaultLayoutOptions
-                          { layoutPageWidth = AvailablePerLine 80 1 }
-                        (pretty parsed :: Doc ())
-                ]
+                      Nothing  ->
+                        mzero
+              , unlines $ map nullWhitespace $ lines $ renderString
+                  $ layoutPretty
+                      defaultLayoutOptions
+                        { layoutPageWidth = AvailablePerLine 80 1 }
+                      (((pretty parsed :: Doc ())))
+              ]
 
   where
 
@@ -326,6 +325,29 @@ instance Pretty (FieldOcc RdrName) where
 instance Pretty (InstDecl RdrName) where
   pretty ClsInstD {cid_inst} =
     pretty cid_inst
+  pretty TyFamInstD {tfid_inst} =
+    pretty tfid_inst
+
+
+instance Pretty (TyFamInstDecl RdrName) where
+  pretty =
+    pretty . tfid_eqn
+
+
+instance Pretty (LTyFamInstEqn RdrName) where
+  pretty =
+    pretty . unLoc
+
+
+instance Pretty (TyFamInstEqn RdrName) where
+  pretty (TyFamEqn n pats rhs) =
+    hang 2 $ "type instance" <+> pretty n <+> pretty pats <+> equals <> hardline
+      <> pretty rhs
+
+
+instance Pretty (HsTyPats RdrName) where
+  pretty =
+    pretty . hsib_body
 
 
 instance Pretty (ClsInstDecl RdrName) where
@@ -758,6 +780,8 @@ instance Pretty (Located (HsAppType RdrName)) where
 instance Pretty (HsAppType RdrName) where
   pretty (HsAppPrefix t) =
     pretty t
+  pretty (HsAppInfix t) =
+    prettyName (unLoc t)
 
 
 instance Pretty (LHsContext RdrName) where
@@ -864,8 +888,8 @@ prettyName n =
     Qual mod name ->
       pretty mod <> dot <> pretty name
 
-    Orig mod name ->
-      pretty mod <> dot <> pretty name
+    Orig _mod name ->
+      pretty name
 
     Exact name ->
       pretty (GHC.nameOccName name)
