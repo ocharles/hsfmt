@@ -547,6 +547,13 @@ instance Pretty (HsExpr RdrName) where
               (\x y ->
                   x <> hardline <> hardline <> y)
               (map (hang 2 . pretty) (unLoc exprs)))
+  pretty (HsDo MDoExpr  exprs _) =
+    align $ "mdo" <> hardline
+      <> indent 2
+           (concatWith
+              (\x y ->
+                  x <> hardline <> hardline <> y)
+              (map (hang 2 . pretty) (unLoc exprs)))
   pretty (ExplicitList _ _ exprs) =
     list (map (align . pretty) exprs)
   pretty RecordCon {rcon_con_name, rcon_flds} =
