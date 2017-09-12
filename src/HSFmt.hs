@@ -520,6 +520,8 @@ instance Pretty (HsExpr RdrName) where
     pretty a <+> prettyName (unLoc op)
   pretty (ArithSeq _ _ arithSeq) =
     lbracket <> pretty arithSeq <> rbracket
+  pretty (HsAppType expr ty) =
+    pretty expr <+> "@" <> pretty ty
 
 
 instance Pretty (ArithSeqInfo RdrName) where
