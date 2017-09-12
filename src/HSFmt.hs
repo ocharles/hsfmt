@@ -650,6 +650,8 @@ instance Pretty HsLit where
     pretty src
   pretty (HsChar src _) =
     pretty src
+  pretty (HsIntPrim src _) =
+    pretty src
 
 
 parPat (a@(ConPatIn _ InfixCon {})) =
