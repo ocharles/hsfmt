@@ -5,7 +5,7 @@ module HSFmt (prettyPrintFile) where
 import Control.Monad
 import qualified Data.Map as Map
 import Data.Char
-import BasicTypes (fl_text, InlinePragma(..), WarningTxt(..), sl_st)
+import BasicTypes (fl_text, InlinePragma(..), WarningTxt(..), sl_st, Fixity(..))
 import Data.Maybe
 import Data.Text.Prettyprint.Doc hiding (list, tupled)
 import Data.Text.Prettyprint.Doc.Render.String
@@ -833,6 +833,16 @@ instance Pretty (Sig RdrName) where
       <+> align (pretty c)
   pretty (InlineSig n (InlinePragma {inl_src})) =
     pretty inl_src  <+> pretty n <+> "#-}"
+  pretty (FixSig fixity) = pretty fixity
+
+instance Pretty (FixitySig RdrName) where
+  pretty (FixitySig names (Fixity _ n dir)) = pretty dir <+> pretty n <+> hsep (punctuate comma (map (prettyName . unLoc) names))
+
+instance Pretty FixityDirection where
+  pretty InfixL = "infixl"
+  pretty InfixR = "infixr"
+  pretty InfixN = "infix"
+
 
 
 instance Pretty (LHsSigWcType RdrName) where
