@@ -468,7 +468,7 @@ instance Pretty (HsExpr RdrName) where
   pretty (ExplicitList _ _ exprs) =
     list (map (align . pretty) exprs)
   pretty RecordCon {rcon_con_name, rcon_flds} =
-    pretty rcon_con_name <+> pretty rcon_flds
+    group (hang 2 (pretty rcon_con_name <> line <> pretty rcon_flds))
   pretty (HsSpliceE a) =
     pretty a
   pretty (ExprWithTySig (L _ a) b) =

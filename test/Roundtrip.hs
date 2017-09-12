@@ -553,7 +553,8 @@ genGRHS =
 
 
 syntaxExpr =
-  GHC.SyntaxExpr {syn_expr = GHC.EWildPat, syn_arg_wraps = [], syn_res_wrap = WpHole}
+  GHC.SyntaxExpr
+    {syn_expr = GHC.EWildPat, syn_arg_wraps = [], syn_res_wrap = WpHole}
 
 
 genBodyStmt :: Gen (GHC.ExprLStmt RdrName.RdrName)
