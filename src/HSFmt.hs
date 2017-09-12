@@ -173,20 +173,28 @@ instance Pretty (HsDecl RdrName) where
     pretty ann
   pretty (DerivD d) =
     pretty d
-  pretty (WarningD w) = pretty w
+  pretty (WarningD w) =
+    pretty w
+
 
 instance Pretty (WarnDecls RdrName) where
-  pretty (Warnings{wd_src, wd_warnings}) = pretty wd_src <+> hsep (map pretty wd_warnings)  <+> "-#}"
+  pretty (Warnings {wd_src, wd_warnings}) =
+    pretty wd_src <+> hsep (map pretty wd_warnings) <+> "-#}"
+
 
 instance Pretty (Located (WarnDecl RdrName)) where
-  pretty = pretty . unLoc
+  pretty =
+    pretty . unLoc
+
 
 instance Pretty (WarnDecl RdrName) where
-  pretty (Warning names txt) = hsep (punctuate comma (map pretty names)) <+> pretty txt
+  pretty (Warning names txt) =
+    hsep (punctuate comma (map pretty names)) <+> pretty txt
+
 
 instance Pretty WarningTxt where
-  pretty (DeprecatedTxt a b) = pretty (unLoc a) <> hsep (map (pretty . sl_st . unLoc) b)
-
+  pretty (DeprecatedTxt a b) =
+    pretty (unLoc a) <> hsep (map (pretty . sl_st . unLoc) b)
 
 
 instance Pretty (DerivDecl RdrName) where
@@ -592,10 +600,13 @@ instance Pretty (HsExpr RdrName) where
     pretty expr <+> "@" <> pretty ty
   pretty (HsLamCase _ mg) =
     "\\" <> (hang 2 $ "case" <> hardline <> align (prettyMatchGroup "->" mg))
-  pretty (HsBracket a) = pretty a
+  pretty (HsBracket a) =
+    pretty a
+
 
 instance Pretty (HsBracket RdrName) where
-  pretty (VarBr False a) = squote <> squote <> prettyName a
+  pretty (VarBr False  a) =
+    squote <> squote <> prettyName a
 
 
 instance Pretty (ArithSeqInfo RdrName) where
@@ -832,17 +843,24 @@ instance Pretty (Sig RdrName) where
       <+> "::"
       <+> align (pretty c)
   pretty (InlineSig n (InlinePragma {inl_src})) =
-    pretty inl_src  <+> pretty n <+> "#-}"
-  pretty (FixSig fixity) = pretty fixity
+    pretty inl_src <+> pretty n <+> "#-}"
+  pretty (FixSig fixity) =
+    pretty fixity
+
 
 instance Pretty (FixitySig RdrName) where
-  pretty (FixitySig names (Fixity _ n dir)) = pretty dir <+> pretty n <+> hsep (punctuate comma (map (prettyName . unLoc) names))
+  pretty (FixitySig names (Fixity _ n dir)) =
+    pretty dir <+> pretty n
+      <+> hsep (punctuate comma (map (prettyName . unLoc) names))
+
 
 instance Pretty FixityDirection where
-  pretty InfixL = "infixl"
-  pretty InfixR = "infixr"
-  pretty InfixN = "infix"
-
+  pretty InfixL  =
+    "infixl"
+  pretty InfixR  =
+    "infixr"
+  pretty InfixN  =
+    "infix"
 
 
 instance Pretty (LHsSigWcType RdrName) where
