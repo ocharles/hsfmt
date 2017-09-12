@@ -171,6 +171,10 @@ instance Pretty (HsDecl RdrName) where
     pretty a
   pretty (AnnD ann) =
     pretty ann
+  pretty (DerivD d) = pretty d
+
+instance Pretty (DerivDecl RdrName) where
+  pretty (DerivDecl t _) = "deriving instance" <+> pretty t
 
 
 instance Pretty (AnnDecl RdrName) where
