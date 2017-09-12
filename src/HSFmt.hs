@@ -5,7 +5,7 @@ module HSFmt (prettyPrintFile) where
 import Control.Monad
 import qualified Data.Map as Map
 import Data.Char
-import BasicTypes (fl_text, InlinePragma(..))
+import BasicTypes (fl_text, InlinePragma(..), WarningTxt(..), sl_st)
 import Data.Maybe
 import Data.Text.Prettyprint.Doc hiding (list, tupled)
 import Data.Text.Prettyprint.Doc.Render.String
@@ -173,6 +173,20 @@ instance Pretty (HsDecl RdrName) where
     pretty ann
   pretty (DerivD d) =
     pretty d
+  pretty (WarningD w) = pretty w
+
+instance Pretty (WarnDecls RdrName) where
+  pretty (Warnings{wd_src, wd_warnings}) = pretty wd_src <+> hsep (map pretty wd_warnings)  <+> "-#}"
+
+instance Pretty (Located (WarnDecl RdrName)) where
+  pretty = pretty . unLoc
+
+instance Pretty (WarnDecl RdrName) where
+  pretty (Warning names txt) = hsep (punctuate comma (map pretty names)) <+> pretty txt
+
+instance Pretty WarningTxt where
+  pretty (DeprecatedTxt a b) = pretty (unLoc a) <> hsep (map (pretty . sl_st . unLoc) b)
+
 
 
 instance Pretty (DerivDecl RdrName) where
