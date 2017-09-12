@@ -4,7 +4,6 @@
 {-# language RecordWildCards #-}
 {-# language TemplateHaskell #-}
 {-# language TypeSynonymInstances #-}
-
 module Main where
 
 import qualified Bag

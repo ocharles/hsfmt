@@ -1,8 +1,9 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE TypeSynonymInstances #-}
-
 module HSFmt (prettyPrintFile) where
 
+import Control.Monad
+import qualified Data.Map as Map
 import Data.Char
 import BasicTypes (fl_text)
 import Data.Maybe
@@ -16,6 +17,10 @@ import Language.Haskell.GHC.ExactPrint ( Annotation(..)
                                        , AnnKey(..)
                                        , parseModule
                                        )
+import Language.Haskell.GHC.ExactPrint.Types ( annGetConstr
+                                             , KeywordId(AnnComment)
+                                             , Comment(..)
+                                             )
 import Module
 import qualified Name as GHC
 import OccName
@@ -81,12 +86,31 @@ prettyPrintFile path =
         error (show e)
 
       Right (anns, parsed) ->
-        return
-          (unlines $ map nullWhitespace $ lines $ renderString
-             $ layoutPretty
-                 defaultLayoutOptions { layoutPageWidth = AvailablePerLine 80
-                                                            1 }
-                 ((pretty parsed :: Doc ())))
+        do
+          return
+            $ concat
+                [ case parsed of
+                    L srcSpan a ->
+                      case AnnKey srcSpan (annGetConstr a) `Map.lookup` anns of
+                        Just ann ->
+                          unlines $ concatMap yieldComment (annsDP ann)
+
+                        Nothing  ->
+                          mzero
+                , unlines $ map nullWhitespace $ lines $ renderString
+                    $ layoutPretty
+                        defaultLayoutOptions { layoutPageWidth = AvailablePerLine
+                                                                   80
+                                                                   1 }
+                        (((pretty parsed :: Doc ())))
+                ]
+
+  where
+
+    yieldComment ((AnnComment (Comment c _ _)), _) =
+      return c
+    yieldComment _ =
+      mzero
 
 
 instance Pretty ParsedSource where
