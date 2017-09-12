@@ -555,6 +555,10 @@ instance Pretty (HsCmd RdrName) where
     "do" <+> align (pretty stmts)
   pretty (HsCmdArrApp expr args _ HsFirstOrderApp  True ) =
     pretty expr <+> "-<" <+> pretty args
+  pretty (HsCmdArrForm expr _ args) =
+    "(|" <+> align (pretty expr <+> hsep (map pretty args) <+> "|)")
+  pretty (HsCmdPar p) =
+    parens (pretty p)
 
 
 instance Pretty (Located [CmdLStmt RdrName]) where
