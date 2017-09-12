@@ -503,6 +503,19 @@ instance Pretty (HsExpr RdrName) where
     prettyName (unLoc op) <+> pretty a
   pretty (SectionL a (L _ (HsVar op))) =
     pretty a <+> prettyName (unLoc op)
+  pretty (ArithSeq _ _ arithSeq) =
+    lbracket <> pretty arithSeq <> rbracket
+
+
+instance Pretty (ArithSeqInfo RdrName) where
+  pretty (From a) =
+    pretty a <> ".."
+  pretty (FromThen a b) =
+    pretty a <> comma <+> pretty b <> comma <+> ".."
+  pretty (FromTo a b) =
+    pretty a <+> ".." <+> pretty b
+  pretty (FromThenTo a b c) =
+    pretty a <> comma <+> pretty b <> comma <+> ".." <+> pretty c
 
 
 instance Pretty (Located (HsCmdTop RdrName)) where
