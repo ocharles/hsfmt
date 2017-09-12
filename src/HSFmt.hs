@@ -298,6 +298,8 @@ instance Pretty (Located (ConDecl RdrName)) where
 
 
 instance Pretty (ConDecl RdrName) where
+  pretty ConDeclGADT {con_names, con_type} =
+    hsep (punctuate comma (map pretty con_names)) <+> "::" <+> pretty con_type
   pretty ConDeclH98 {con_name, con_details, con_cxt, con_qvars} =
     (foldMap
        (\vars ->
