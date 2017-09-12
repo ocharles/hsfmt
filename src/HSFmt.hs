@@ -171,10 +171,13 @@ instance Pretty (HsDecl RdrName) where
     pretty a
   pretty (AnnD ann) =
     pretty ann
-  pretty (DerivD d) = pretty d
+  pretty (DerivD d) =
+    pretty d
+
 
 instance Pretty (DerivDecl RdrName) where
-  pretty (DerivDecl t _) = "deriving instance" <+> pretty t
+  pretty (DerivDecl t _) =
+    "deriving instance" <+> pretty t
 
 
 instance Pretty (AnnDecl RdrName) where
@@ -271,9 +274,15 @@ instance Pretty (Located (ConDecl RdrName)) where
 
 instance Pretty (ConDecl RdrName) where
   pretty ConDeclH98 {con_name, con_details, con_cxt, con_qvars} =
-    (foldMap (\vars -> "forall" <+> pretty con_qvars <> dot <> space) con_qvars) <>
-    (foldMap (\ctx -> pretty ctx <+> "=>" <> space) con_cxt) <>
-    pretty con_name
+    (foldMap
+       (\vars ->
+           "forall" <+> pretty con_qvars <> dot <> space)
+       con_qvars)
+      <> (foldMap
+            (\ctx ->
+                pretty ctx <+> "=>" <> space)
+            con_cxt)
+      <> pretty con_name
       <+> (case con_details of
              RecCon xs ->
                align (braces (pretty xs))
