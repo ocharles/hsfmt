@@ -578,6 +578,10 @@ instance Pretty (HsExpr RdrName) where
     pretty expr <+> "@" <> pretty ty
   pretty (HsLamCase _ mg) =
     "\\" <> (hang 2 $ "case" <> hardline <> align (prettyMatchGroup "->" mg))
+  pretty (HsBracket a) = pretty a
+
+instance Pretty (HsBracket RdrName) where
+  pretty (VarBr False a) = squote <> squote <> prettyName a
 
 
 instance Pretty (ArithSeqInfo RdrName) where
