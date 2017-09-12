@@ -758,7 +758,7 @@ instance Pretty (LHsWcType RdrName) where
 
 
 instance Pretty (LHsType RdrName) where
-  pretty (L _loc ty) =
+  pretty (L _loTcT ty) =
     pretty ty
 
   prettyList =
@@ -788,6 +788,8 @@ instance Pretty (HsType RdrName) where
     pretty t
   pretty (HsExplicitTupleTy _ tys) =
     squote <> tupled (map pretty tys)
+  pretty (HsBangTy _ t) =
+    "!" <> pretty t
 
 
 instance Pretty HsTyLit where
