@@ -676,6 +676,8 @@ instance Pretty (LHsTupArg RdrName) where
 instance Pretty (HsTupArg RdrName) where
   pretty (Present expr) =
     pretty expr
+  pretty Missing{} =
+    mempty
 
 
 instance Pretty HsLit where
