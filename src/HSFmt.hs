@@ -195,7 +195,30 @@ instance Pretty (Located (HsSplice RdrName)) where
     pretty a
 
 
+instance Pretty (FamilyDecl RdrName) where
+  pretty (FamilyDecl (ClosedTypeFamily equations) name tys res _) =
+    "type family" <+> pretty name <+> pretty tys <+> pretty res <+> "where"
+      <> hardline
+      <> indent 2 (pretty equations)
+
+
+instance Pretty (LFamilyResultSig RdrName) where
+  pretty =
+    pretty . unLoc
+
+
+instance Pretty (FamilyResultSig RdrName) where
+  pretty NoSig  =
+    mempty
+  pretty (KindSig t) =
+    "::" <+> pretty t
+  pretty (TyVarSig s) =
+    pretty s
+
+
 instance Pretty (TyClDecl RdrName) where
+  pretty (FamDecl fam) =
+    pretty fam
   pretty SynDecl {tcdLName, tcdRhs} =
     "type" <+> pretty tcdLName <+> equals <> hardline
       <> indent 2 (pretty tcdRhs)
@@ -252,6 +275,8 @@ instance Pretty (LHsTyVarBndr RdrName) where
 instance Pretty (HsTyVarBndr RdrName) where
   pretty (UserTyVar n) =
     pretty n
+  pretty (KindedTyVar t k) =
+    parens (pretty t <+> "::" <+> pretty k)
 
 
 instance Pretty (LSig RdrName) where
@@ -345,19 +370,21 @@ instance Pretty (InstDecl RdrName) where
 
 
 instance Pretty (TyFamInstDecl RdrName) where
-  pretty =
-    pretty . tfid_eqn
+  pretty eqn =
+    hang 2 $ "type instance" <+> pretty (tfid_eqn eqn)
 
 
 instance Pretty (LTyFamInstEqn RdrName) where
   pretty =
     pretty . unLoc
 
+  prettyList =
+    vsep . map (hang 2 . pretty)
+
 
 instance Pretty (TyFamInstEqn RdrName) where
   pretty (TyFamEqn n pats rhs) =
-    hang 2 $ "type instance" <+> pretty n <+> pretty pats <+> equals <> hardline
-      <> pretty rhs
+    pretty n <+> pretty pats <+> equals <> hardline <> pretty rhs
 
 
 instance Pretty (HsTyPats RdrName) where
