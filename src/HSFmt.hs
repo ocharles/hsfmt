@@ -99,10 +99,9 @@ prettyPrintFile path =
                           mzero
                 , unlines $ map nullWhitespace $ lines $ renderString
                     $ layoutPretty
-                        defaultLayoutOptions { layoutPageWidth = AvailablePerLine
-                                                                   80
-                                                                   1 }
-                        (((pretty parsed :: Doc ())))
+                        defaultLayoutOptions
+                          { layoutPageWidth = AvailablePerLine 80 1 }
+                        (pretty parsed :: Doc ())
                 ]
 
   where
@@ -475,7 +474,7 @@ instance Pretty (HsExpr RdrName) where
   pretty (ExprWithTySig (L _ a) b) =
     parens (parensExpr a <+> "::" <+> pretty b)
   pretty RecordUpd {rupd_expr, rupd_flds} =
-    parensExpr (unLoc rupd_expr) <+> pretty rupd_flds
+    group (hang 2 (parensExpr (unLoc rupd_expr) <> line <> pretty rupd_flds))
   pretty (HsProc pat cmds) =
     align $ "proc" <+> align (pretty pat) <+> "->" <+> pretty cmds
   pretty (SectionR (L _ (HsVar op)) a) =
