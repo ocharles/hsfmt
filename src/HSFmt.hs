@@ -720,6 +720,8 @@ instance Pretty (Pat RdrName) where
     align (parensExpr (unLoc expr)) <+> "->" <+> pretty pat
   pretty (NPat l neg _ _) =
     foldMap (const "-") neg <> pretty l
+  pretty (SigPatIn pat t) =
+    pretty pat <+> "::" <+> pretty t
 
 
 instance Pretty (Located (HsOverLit RdrName)) where
