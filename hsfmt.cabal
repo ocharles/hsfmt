@@ -40,6 +40,7 @@ library
 executable hs-fmt
             main-is: Main.hs
             build-depends: base, hsfmt
+            default-language: Haskell2010
 
 test-suite properties
   type:                exitcode-stdio-1.0
