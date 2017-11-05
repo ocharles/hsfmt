@@ -325,7 +325,7 @@ instance Pretty (ConDecl RdrName) where
   pretty ConDeclH98 {con_name, con_details, con_cxt, con_qvars} =
     (foldMap
        (\vars ->
-           "forall" <+> pretty con_qvars <> dot <> space)
+           "forall" <+> pretty vars <> dot <> space)
        con_qvars)
       <> (foldMap
             (\ctx ->
@@ -753,6 +753,8 @@ parPat (a@AsPat {}) =
   parens (pretty a)
 parPat (a@ViewPat {}) =
   parens (pretty a)
+parPat (a@BangPat {}) =
+  parens (pretty a)
 parPat a =
   pretty a
 
@@ -769,7 +771,7 @@ instance Pretty (Pat RdrName) where
   pretty (TuplePat pats _ _) =
     tupled (map pretty pats)
   pretty (ConPatIn id_ (InfixCon a b)) =
-    pretty a <+> prettyName (unLoc id_) <+> pretty b
+    parPat (unLoc a) <+> prettyName (unLoc id_) <+> parPat (unLoc a)
   pretty (ConPatIn id_ details) =
     pretty id_ <+> pretty details
   pretty (LitPat a) =
@@ -782,6 +784,8 @@ instance Pretty (Pat RdrName) where
     foldMap (const "-") neg <> pretty l
   pretty (SigPatIn pat t) =
     pretty pat <+> "::" <+> pretty t
+  pretty (BangPat pat) =
+    "!" <> parPat (unLoc pat)
 
 
 instance Pretty (Located (HsOverLit RdrName)) where

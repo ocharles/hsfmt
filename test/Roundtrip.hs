@@ -570,6 +570,7 @@ genPat =
     , GHC.TuplePat <$> Gen.list (Range.linear 1 3) (located genPat)
         <*> pure Boxed
         <*> pure []
+    , needsExtension BangPatterns (Gen.subtermM genPat (\p -> GHC.BangPat <$> located (pure p)))
     ]
 
 
