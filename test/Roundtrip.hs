@@ -1,5 +1,7 @@
 {-# language DefaultSignatures #-}
+{-# language FlexibleContexts #-}
 {-# language FlexibleInstances #-}
+{-# language GeneralizedNewtypeDeriving #-}
 {-# language OverloadedStrings #-}
 {-# language RecordWildCards #-}
 {-# language TemplateHaskell #-}
@@ -10,14 +12,20 @@ import qualified Bag
 import qualified BasicTypes
 import BasicTypes (Boxity(Boxed), Origin(FromSource))
 import Control.Monad.IO.Class
+import Control.Monad.State
 import Data.Algorithm.Diff
 import Data.Algorithm.DiffOutput
+import Data.Bifunctor (second)
 import Data.Function (on)
+import Data.List
 import Data.Text.Prettyprint.Doc (pretty)
+import DynFlags (xopt_set, xopt)
 import qualified FastString
 import qualified GHC
+import GHC.LanguageExtensions.Type (Extension(..))
 import HSFmt ()
-import Hedgehog
+import Hedgehog hiding (Gen)
+import qualified Hedgehog
 import qualified Hedgehog.Gen as Gen
 import qualified Hedgehog.Range as Range
 import Language.Haskell.GHC.ExactPrint (exactPrint)
@@ -26,7 +34,18 @@ import qualified RdrName
 import System.IO
 import TcEvidence (HsWrapper(WpHole))
 
+newtype Gen a = Gen { getGen :: StateT [Extension] Hedgehog.Gen a }
+  deriving (Functor, Applicative, Monad, MonadState [Extension])
 
+needsExtension :: MonadState [Extension] m => Extension -> m a -> m a
+needsExtension e m = modify (e:) *> m
+
+instance MonadGen Gen where
+  liftGen = Gen . liftGen
+  shrinkGen f (Gen g) = Gen (shrinkGen f g)
+  pruneGen (Gen g) = Gen (pruneGen g)
+  scaleGen f (Gen g) = Gen (scaleGen f g)
+  freezeGen (Gen g) = fmap (second Gen) $ Gen (freezeGen g)
 
 main :: IO ()
 main =
@@ -44,13 +63,15 @@ prop_moduleRoundtrip :: Property
 prop_moduleRoundtrip =
   withTests 1000 $ property
     $ do
-        ShowModule mod <-
-          forAll (fmap ShowModule genModule)
+        (ShowModule mod, exts) <-
+          forAll (runStateT (getGen (fmap ShowModule genModule)) [])
 
         footnote (show $ ShowModule mod)
 
+        let languagePragmas = unlines (map (\e -> "{-# language " ++ show e ++ "#-}") (nub exts))
+
         parse <-
-          liftIO (parseModuleFromString "input.hs" (show (pretty mod)))
+          liftIO (parseModuleFromString "input.hs" (languagePragmas ++ show (pretty mod)))
 
         case parse of
           Left e ->

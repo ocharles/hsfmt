@@ -47,9 +47,11 @@ test-suite properties
   build-depends:       Diff
                      , base
                      , ghc
+                     , ghc-boot
                      , ghc-exactprint
                      , hedgehog
                      , hsfmt
+                     , mtl
                      , prettyprinter
                      , template-haskell >= 2.11.1.0
   main-is:             Roundtrip.hs
