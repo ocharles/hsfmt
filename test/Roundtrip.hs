@@ -346,7 +346,7 @@ genHsDataDefn =
                Range.singleton 1
              else
                Range.linear 0 10)
-            (located genConDecl)
+            (located (genConDecl newOrData))
       <*> genHsDeriving
 
 
@@ -360,12 +360,17 @@ genLHsSigType =
   genHsImplicitBndrs
 
 
-genConDecl :: Gen (GHC.ConDecl RdrName.RdrName)
-genConDecl =
+genConDecl :: GHC.NewOrData -> Gen (GHC.ConDecl RdrName.RdrName)
+genConDecl newOrData =
   Gen.choice
-    [ GHC.ConDeclH98 <$> located genTypeName <*> Gen.maybe genLHsQTyVars
-        <*> Gen.maybe
-              (located (Gen.list (Range.linear 0 10) (located genHsType)))
+    [ GHC.ConDeclH98 <$> located genTypeName
+        <*> (if newOrData == GHC.NewType then
+               pure Nothing
+             else Gen.maybe (needsExtension ExistentialQuantification genLHsQTyVars))
+        <*> (if newOrData == GHC.NewType then
+               pure Nothing
+             else
+               Gen.maybe (needsExtension ExistentialQuantification (located (Gen.list (Range.linear 0 10) (located genHsType)))))
         <*> genHsConDeclDetails
         <*> pure Nothing
     ]
